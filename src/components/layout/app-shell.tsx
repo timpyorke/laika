@@ -1,11 +1,13 @@
 import { Box, Clock3, Code2, Moon, Plus, Settings2, Sun, Variable, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { CollectionsSidebar } from "../../features/collections";
+import { CollectionsSidebar, SaveRequestDialog } from "../../features/collections";
 import { EnvironmentDialog } from "../../features/environments";
 import { HistoryPanel } from "../../features/history";
 import { RequestWorkspace } from "../../features/request";
 import { ResponsePanel } from "../../features/response";
 import { useAppStore } from "../../store/use-app-store";
+import { methodColor } from "../../lib/http-display";
+import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -27,12 +29,20 @@ export function AppShell() {
   const compact = useCompactLayout();
   const theme = useAppStore((state) => state.theme);
   const method = useAppStore((state) => state.draft.method);
+  const requestName = useAppStore((state) => state.draft.name);
+  const isSaved = useAppStore((state) => state.draft.savedRequestId !== null);
   const setTheme = useAppStore((state) => state.setTheme);
   const setEnvironmentDialogOpen = useAppStore((state) => state.setEnvironmentDialogOpen);
+  const loadWorkspace = useAppStore((state) => state.loadWorkspace);
+  const newRequest = useAppStore((state) => state.newRequest);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  useEffect(() => {
+    void loadWorkspace();
+  }, [loadWorkspace]);
 
   return (
     <div className="flex h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
@@ -44,12 +54,15 @@ export function AppShell() {
           <span className="text-sm font-semibold">Laika</span>
         </div>
         <div className="flex min-w-0 flex-1 items-center self-stretch border-x border-[var(--border)]">
-          <button className="flex h-full min-w-0 max-w-[260px] items-center gap-2 border-r border-[var(--border)] bg-[var(--background)] px-3 text-sm">
-            <span className="font-semibold text-[#16834b] dark:text-[#4ade80]">{method}</span>
-            <span className="truncate">Untitled request</span>
-            <X size={14} className="ml-auto shrink-0 text-[var(--muted)]" />
-          </button>
-          <Button variant="ghost" size="icon" className="ml-1" aria-label="New request" title="New request">
+          <div className="flex h-full min-w-0 max-w-[280px] items-center gap-2 border-r border-[var(--border)] bg-[var(--background)] px-3 text-sm">
+            <span className={cn("shrink-0 font-semibold", methodColor[method])}>{method}</span>
+            <span className="truncate" title={requestName}>{requestName}</span>
+            {isSaved ? null : <span className="shrink-0 text-xs text-[var(--muted)]">Unsaved</span>}
+            <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 shrink-0" aria-label="Close request" title="Close request" onClick={newRequest}>
+              <X size={14} />
+            </Button>
+          </div>
+          <Button variant="ghost" size="icon" className="ml-1" aria-label="New request" title="New request" onClick={newRequest}>
             <Plus size={16} />
           </Button>
         </div>
@@ -101,6 +114,7 @@ export function AppShell() {
         </ResizablePanelGroup>
       </div>
       <EnvironmentDialog />
+      <SaveRequestDialog />
     </div>
   );
 }

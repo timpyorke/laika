@@ -21,6 +21,10 @@ export interface RequestAuthDraft {
 export interface RequestDraft {
   id: string;
   name: string;
+  /** Set once the draft has been saved into a collection. */
+  savedRequestId: string | null;
+  collectionId: string | null;
+  folderId: string | null;
   method: HttpMethod;
   url: string;
   params: KeyValueEntry[];
@@ -47,6 +51,9 @@ export type RequestAuthPayload =
 
 export interface ExecuteHttpRequestInput {
   requestId: string;
+  /** Links the resulting history entry back to a saved request. */
+  savedRequestId: string | null;
+  name: string;
   method: HttpMethod;
   url: string;
   params: KeyValuePayload[];
@@ -72,7 +79,9 @@ export interface HttpResponse {
 
 export type ApplicationErrorCode =
   | "INVALID_REQUEST" | "INVALID_URL" | "INVALID_HEADER" | "INVALID_BODY" | "INVALID_AUTH"
-  | "NETWORK_ERROR" | "TIMEOUT" | "TLS_ERROR" | "CANCELLED" | "UNEXPECTED_ERROR";
+  | "NETWORK_ERROR" | "TIMEOUT" | "TLS_ERROR" | "CANCELLED"
+  | "INVALID_INPUT" | "NOT_FOUND" | "DATABASE_ERROR" | "DATABASE_UNAVAILABLE"
+  | "UNEXPECTED_ERROR";
 
 export interface ApplicationError {
   code: ApplicationErrorCode;

@@ -28,7 +28,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 0 | Project Bootstrap | The project builds and produces a Windows installer | Complete |
 | 1 | Application Foundation | The UI shell, state, and frontend structure are ready for feature development | Complete |
 | 2 | REST Request MVP | Users can compose and send requests, then inspect responses | Complete |
-| 3 | Local Workspace | Collections and history are stored in SQLite | Planned |
+| 3 | Local Workspace | Collections and history are stored in SQLite | Complete |
 | 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Planned |
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Planned |
 | 6 | API Testing | Users can create assertions and run test cases | Planned |
@@ -136,30 +136,54 @@ Goal: Allow users to save requests and resume work after restarting the app.
 
 ### Checklist
 
-- [ ] Add SQLite and select a Tauri-compatible database integration.
-- [ ] Create a migration system and schema versioning.
-- [ ] Design entities for workspace, collection, folder, request, and history entry.
-- [ ] Create a Rust repository layer that is separate from Tauri commands.
-- [ ] Implement CRUD for collections, folders, and saved requests.
-- [ ] Record appropriate history entries after both successful and failed requests.
-- [ ] Reopen requests from collections or history in the editor.
-- [ ] Add search, rename, duplicate, move, and delete operations.
-- [ ] Define a retention policy and clear-history workflow.
-- [ ] Never store authentication secrets in SQLite.
+- [x] Add SQLite and select a Tauri-compatible database integration.
+- [x] Create a migration system and schema versioning.
+- [x] Design entities for workspace, collection, folder, request, and history entry.
+- [x] Create a Rust repository layer that is separate from Tauri commands.
+- [x] Implement CRUD for collections, folders, and saved requests.
+- [x] Record appropriate history entries after both successful and failed requests.
+- [x] Reopen requests from collections or history in the editor.
+- [x] Add search, rename, duplicate, and delete operations.
+- [x] Add move operations to the repository and command layer.
+- [x] Expose moving through the sidebar with a keyboard-accessible destination dialog; drag and drop is deferred to Phase 5.
+- [x] Define a retention policy and clear-history workflow.
+- [x] Never store authentication secrets in SQLite.
 
 ### Data Checklist
 
-- [ ] Store request metadata and non-secret values as structured data.
-- [ ] Store large bodies only within defined limits.
-- [ ] Use foreign keys and transactions for move/delete operations.
-- [ ] Support migrations from the previous schema version.
+- [x] Store request metadata and non-secret values as structured data.
+- [x] Store large bodies only within defined limits.
+- [x] Use foreign keys and transactions for move/delete operations.
+- [x] Keep the initial migration idempotent for both new and already-migrated databases.
 
 ### Definition of Done
 
-- [ ] Saved requests and collections remain available after restart.
-- [ ] History is created when a request finishes and can be reopened.
-- [ ] Migrations work for both a new database and a database from the previous version.
-- [ ] Database failures produce recoverable errors without closing the app.
+- [x] Saved requests and collections remain available after restart.
+- [x] History is created when a request finishes and can be reopened.
+- [x] The initial migration works for both a new database and an already-migrated database.
+- [x] Database failures produce recoverable errors without closing the app.
+
+### Implementation Notes
+
+- Persistence uses `sqlx` with the runtime query API, so queries stay in Rust and
+  the repository layer can later back a CLI. `tauri-plugin-sql` was rejected
+  because it moves SQL into the frontend.
+- The database lives at `app_data_dir()/laika.db`. Foreign keys and WAL are set
+  through the pool connect options, since `PRAGMA foreign_keys` is ignored inside
+  the transaction that wraps each migration.
+- Identifiers are UUID v4 text and timestamps are Unix epoch milliseconds.
+- Query parameters, headers, and form fields are stored as JSON columns whose
+  shape matches the editor's key/value rows.
+- Redaction is enforced in the repository layer, not at the call site: values of
+  `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, and `x-api-key`
+  are dropped before any row is written, and `auth_secret_ref` stays NULL until
+  Phase 4 introduces Stronghold.
+- Stored request and response bodies are capped at 1 MB; history keeps the newest
+  1000 entries per workspace.
+- History is recorded for requests that reached the network. Validation failures
+  and cancellations are treated as form errors, not history.
+- A failed database startup degrades the app instead of stopping it: the window
+  opens and workspace commands return `DATABASE_UNAVAILABLE`.
 
 ## Phase 4: Environments and Secrets
 
@@ -197,6 +221,7 @@ Goal: Make Laika fast and predictable enough for everyday use.
 - [ ] Add request tabs with dirty state and confirmation before closing.
 - [ ] Add keyboard shortcuts for send, save, new request, and tab navigation.
 - [ ] Make the sidebar and response panel resizable and collapsible.
+- [ ] Add drag-and-drop moving and reordering for sidebar folders and requests.
 - [ ] Add response search and header filtering.
 - [ ] Generate code snippets such as cURL.
 - [ ] Import cURL and export/import Laika collections.
@@ -260,13 +285,13 @@ Goal: Prepare the app for distribution and long-term maintenance.
 
 Use this checklist to close the active phase, then reset it when the next phase begins:
 
-- [ ] Frontend: type checking and the production build pass.
-- [ ] Rust: formatting, linting, and tests pass.
-- [ ] Contract: frontend/backend payloads have validation and any required backward compatibility.
-- [ ] UX: loading, empty, success, and error states are complete.
-- [ ] Security: secrets do not enter logs, history, or error payloads.
-- [ ] Data: schema changes include migration and recovery considerations.
-- [ ] Documentation: the README and this plan are updated when scope or status changes.
+- [x] Frontend: type checking and the production build pass.
+- [x] Rust: formatting, linting, and tests pass.
+- [x] Contract: frontend/backend payloads have validation and any required backward compatibility.
+- [x] UX: loading, empty, success, and error states are complete.
+- [x] Security: secrets do not enter logs, history, or error payloads.
+- [x] Data: schema changes include migration and recovery considerations.
+- [x] Documentation: the README and this plan are updated when scope or status changes.
 
 ## Suggested Commands
 
@@ -281,15 +306,19 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Begin Phases 1 and 2 in the following order:
+Begin Phase 4 in the following order:
 
-1. Install UI/state dependencies and create the application shell.
-2. Define the shared request/response contract.
-3. Create request editor state and UI controls.
-4. Add a Rust `reqwest` command with local mock tests.
-5. Connect React to the Tauri command.
-6. Add the response viewer, cancellation, and error handling.
-7. Run smoke tests and complete the REST Request MVP criteria.
+1. Add the environment and variable data model to the existing schema as
+   migration `0002`, including an upgrade test from schema version 1.
+2. Build the environment manager UI and active-environment selector.
+3. Resolve `{{variable}}` references in URLs, parameters, headers, bodies, and
+   authentication, and report unresolved names before sending.
+4. Add Stronghold and store tokens, passwords, and API keys behind opaque
+   references, filling in the `auth_secret_ref` column reserved in schema
+   version 1.
+5. Mask secrets in the UI with explicit reveal and copy actions.
+6. Re-check the redaction rules in `src-tauri/src/store/models.rs` once real
+   secret references exist.
 
 ## Scope Control
 

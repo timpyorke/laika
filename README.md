@@ -6,24 +6,26 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-This repository is currently at the initial Tauri scaffold stage.
+Phases 0 through 3 of [docs/plan.md](docs/plan.md) are complete.
 
 Implemented:
 
-- Tauri 2 desktop app shell
-- React + TypeScript + Vite frontend
-- pnpm package management
-- Rust backend entrypoint with a sample Tauri command
-- Windows release build and installer generation verified
+- Tauri 2 desktop app shell with a React + TypeScript + Vite frontend
+- Request editor: method, URL, query parameters, headers, body modes, and auth
+- Rust HTTP engine built on `reqwest`, with timeouts, cancellation, response
+  size limits, and CORS-free execution
+- Response viewer with status, elapsed time, size, headers, and body
+- SQLite workspace: collections, nested folders, saved requests, sidebar move actions, and history
+- Request history with search, reopen, per-entry delete, and clear all
+- Credential values are never written to SQLite
 
 Not implemented yet:
 
-- REST request builder UI
-- Rust HTTP engine with `reqwest`
-- Collections and request history
-- Environment variables
+- Environment variables and `{{variable}}` resolution
 - Secret storage with Stronghold
-- SQLite persistence
+- Drag-and-drop reordering in the sidebar
+- Monaco editor, cURL import/export, and request tabs
+- API testing assertions and a collection runner
 
 ## Tech Stack
 
@@ -35,14 +37,14 @@ Current:
 - Vite
 - pnpm
 - Rust
+- `reqwest` for HTTP execution
+- `sqlx` with SQLite for local collections, history, and workspace data
+- Zustand for frontend state
+- Tailwind CSS and shadcn/ui for the application UI
 
 Planned:
 
-- Rust `reqwest` for HTTP execution
-- SQLite for local collections, history, and workspace data
 - Stronghold for secrets and auth values
-- Zustand for frontend state
-- Tailwind CSS and shadcn/ui for the application UI
 - Monaco Editor for JSON, raw body, and response editing
 
 ## Project Structure
@@ -51,14 +53,23 @@ Planned:
 .
 ├── public/                  Static assets served by Vite
 ├── src/                     React frontend source
-│   ├── App.tsx              Current scaffold UI
-│   ├── App.css              Current scaffold styles
+│   ├── components/          App shell, layout, and shared UI primitives
+│   ├── features/            Feature modules: request, response, collections,
+│   │                        history, environments
+│   ├── lib/                 Error contract and display helpers
+│   ├── store/               Zustand application store
+│   ├── types/               Shared HTTP and workspace contracts
+│   ├── App.tsx              Application root
 │   ├── main.tsx             React entrypoint
 │   └── vite-env.d.ts        Vite type declarations
 ├── src-tauri/               Tauri/Rust desktop backend
 │   ├── capabilities/        Tauri permission capabilities
 │   ├── icons/               App and installer icons
+│   ├── migrations/          Versioned SQLite schema migrations
 │   ├── src/
+│   │   ├── error.rs         Shared user-facing error contract
+│   │   ├── http.rs          HTTP engine built on reqwest
+│   │   ├── store/           SQLite repository layer and Tauri commands
 │   │   ├── lib.rs           Tauri command registration and app builder
 │   │   └── main.rs          Native entrypoint
 │   ├── build.rs             Tauri build script
@@ -98,6 +109,20 @@ Build the frontend:
 
 ```bash
 pnpm build
+```
+
+Run the frontend tests:
+
+```bash
+pnpm test
+```
+
+Run the Rust checks:
+
+```bash
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 Build the desktop app and installers:
@@ -149,11 +174,24 @@ Typical Windows artifacts:
 
 ### V0.2: Local Workspace
 
-- Collections
-- Request history
+- Collections and nested folders
+- Saved requests with rename, duplicate, and delete
+- Request history with search and reopen
+- SQLite persistence with versioned migrations
 - Environment variables
-- SQLite persistence
 - Secure secret storage
+
+## Local Data
+
+The workspace database is created on first launch at:
+
+```text
+%APPDATA%\com.codenour.laika\laika.db
+```
+
+It stores collections, folders, saved requests, and history. Authentication
+tokens and passwords are never written to it; credential header values are
+redacted before a row is saved. Deleting the file resets the workspace.
 
 ### Later
 

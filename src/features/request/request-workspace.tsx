@@ -1,22 +1,13 @@
-import { ChevronDown, Send, Square } from "lucide-react";
+import { ChevronDown, Save, Send, Square } from "lucide-react";
 import { useEffect, type FormEvent } from "react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { KeyValueTable } from "../../components/ui/key-value-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { methodColor } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import { AUTH_TYPES, BODY_MODES, HTTP_METHODS, type AuthType, type BodyMode, type HttpMethod, type RequestEditorTab } from "../../types/http";
-
-const methodColor: Record<HttpMethod, string> = {
-  GET: "text-[#16834b] dark:text-[#4ade80]",
-  POST: "text-[#b36a08] dark:text-[#fbbf24]",
-  PUT: "text-[#2563b8] dark:text-[#60a5fa]",
-  PATCH: "text-[#7c4db2] dark:text-[#c084fc]",
-  DELETE: "text-[var(--danger)]",
-  HEAD: "text-[#0f766e] dark:text-[#2dd4bf]",
-  OPTIONS: "text-[#657080] dark:text-[#aab3bf]",
-};
 
 const bodyLabels: Record<BodyMode, string> = { none: "None", json: "JSON", text: "Text", form: "Form" };
 const authLabels: Record<AuthType, string> = { none: "No authentication", bearer: "Bearer token", basic: "Basic auth" };
@@ -38,6 +29,8 @@ export function RequestWorkspace() {
   const removeEntry = useAppStore((state) => state.removeEntry);
   const sendRequest = useAppStore((state) => state.sendRequest);
   const cancelRequest = useAppStore((state) => state.cancelRequest);
+  const isSaving = useAppStore((state) => state.isSaving);
+  const saveDraft = useAppStore((state) => state.saveDraft);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -45,11 +38,15 @@ export function RequestWorkspace() {
         event.preventDefault();
         if (!isSending) void sendRequest();
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveDraft();
+      }
       if (event.key === "Escape" && isSending) void cancelRequest();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelRequest, isSending, sendRequest]);
+  }, [cancelRequest, isSending, saveDraft, sendRequest]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -85,6 +82,16 @@ export function RequestWorkspace() {
         ) : (
           <Button className="h-10 px-4" type="submit"><Send size={15} /> Send</Button>
         )}
+        <Button
+          className="h-10 px-3"
+          type="button"
+          variant="secondary"
+          disabled={isSaving}
+          onClick={() => void saveDraft()}
+          title="Save request (Ctrl+S)"
+        >
+          <Save size={15} /> Save
+        </Button>
       </form>
 
       <Tabs className="flex min-h-0 flex-1 flex-col" value={requestTab} onValueChange={(value) => setRequestTab(value as RequestEditorTab)}>

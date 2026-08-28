@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Copy, FilePlus2, Folder, FolderPlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowRightLeft, ChevronDown, ChevronRight, Copy, FilePlus2, Folder, FolderPlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
@@ -7,6 +7,7 @@ import { methodColor } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import type { Folder as FolderModel, RequestSummary } from "../../types/workspace";
+import { MoveItemDialog, type MoveTarget } from "./move-item-dialog";
 
 type DeleteTarget = { kind: "collection" | "folder" | "request"; id: string; name: string };
 type RenameTarget = { kind: "collection" | "folder" | "request"; id: string };
@@ -39,6 +40,7 @@ export function CollectionsSidebar() {
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<DeleteTarget | null>(null);
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
 
   const foldersByParent = useMemo(() => {
     const map = new Map<string, FolderModel[]>();
@@ -96,6 +98,7 @@ export function CollectionsSidebar() {
       actions={[
         { icon: <Pencil size={13} />, label: `Rename ${request.name}`, onClick: () => setRenaming({ kind: "request", id: request.id }) },
         { icon: <Copy size={13} />, label: `Duplicate ${request.name}`, onClick: () => void duplicateRequest(request.id) },
+        { icon: <ArrowRightLeft size={13} />, label: `Move ${request.name}`, onClick: () => setMoveTarget({ kind: "request", id: request.id, name: request.name, collectionId: request.collectionId, folderId: request.folderId }) },
         { icon: <Trash2 size={13} />, label: `Delete ${request.name}`, danger: true, onClick: () => setPendingDelete({ kind: "request", id: request.id, name: request.name }) },
       ]}
     />
@@ -122,6 +125,7 @@ export function CollectionsSidebar() {
           actions={[
             { icon: <FilePlus2 size={13} />, label: `Save current request into ${folder.name}`, onClick: () => void saveDraft(folder.collectionId, folder.id) },
             { icon: <FolderPlus size={13} />, label: `New folder in ${folder.name}`, onClick: () => void createFolder(folder.collectionId, folder.id, "New folder") },
+            { icon: <ArrowRightLeft size={13} />, label: `Move ${folder.name}`, onClick: () => setMoveTarget({ kind: "folder", id: folder.id, name: folder.name, collectionId: folder.collectionId, parentId: folder.parentId }) },
             { icon: <Pencil size={13} />, label: `Rename ${folder.name}`, onClick: () => setRenaming({ kind: "folder", id: folder.id }) },
             { icon: <Trash2 size={13} />, label: `Delete ${folder.name}`, danger: true, onClick: () => setPendingDelete({ kind: "folder", id: folder.id, name: folder.name }) },
           ]}
@@ -236,6 +240,12 @@ export function CollectionsSidebar() {
         onConfirm={confirmDelete}
         onOpenChange={(open) => {
           if (!open) setPendingDelete(null);
+        }}
+      />
+      <MoveItemDialog
+        target={moveTarget}
+        onOpenChange={(open) => {
+          if (!open) setMoveTarget(null);
         }}
       />
     </div>

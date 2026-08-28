@@ -174,6 +174,55 @@ describe("workspace store", () => {
     expect(useAppStore.getState().draft.savedRequestId).toBeNull();
   });
 
+  it("moves a request and keeps the open draft linked to its new destination", async () => {
+    collections.moveRequest.mockResolvedValue(null);
+    collections.loadWorkspaceTree.mockResolvedValue({
+      ...tree(),
+      collections: [
+        ...tree().collections,
+        { id: "collection-2", name: "Production", description: "", position: 1, createdAt: 1, updatedAt: 1 },
+      ],
+      folders: [
+        ...tree().folders,
+        { id: "folder-2", collectionId: "collection-2", parentId: null, name: "Live", position: 0 },
+      ],
+      requests: [
+        { ...tree().requests[0], collectionId: "collection-2", folderId: "folder-2", position: 0 },
+      ],
+    });
+    useAppStore.setState({
+      ...tree(),
+      draft: {
+        ...useAppStore.getState().draft,
+        savedRequestId: "saved-1",
+        collectionId: "collection-1",
+        folderId: "folder-1",
+      },
+    });
+
+    const moved = await useAppStore.getState().moveRequest("saved-1", "collection-2", "folder-2");
+
+    expect(moved).toBe(true);
+    expect(collections.moveRequest).toHaveBeenCalledWith("saved-1", "collection-2", "folder-2", 0);
+    expect(useAppStore.getState().draft.collectionId).toBe("collection-2");
+    expect(useAppStore.getState().draft.folderId).toBe("folder-2");
+  });
+
+  it("reloads the canonical subtree after moving a folder", async () => {
+    collections.moveFolder.mockResolvedValue(null);
+    collections.loadWorkspaceTree.mockResolvedValue({
+      ...tree(),
+      folders: [{ ...tree().folders[0], parentId: "folder-2", position: 0 }],
+    });
+    useAppStore.setState(tree());
+
+    const moved = await useAppStore.getState().moveFolder("folder-1", "collection-1", "folder-2");
+
+    expect(moved).toBe(true);
+    expect(collections.moveFolder).toHaveBeenCalledWith("folder-1", "collection-1", "folder-2", 0);
+    expect(useAppStore.getState().folders[0].parentId).toBe("folder-2");
+  });
+
   it("reopens a history entry as an unsaved draft", async () => {
     const entry: HistoryEntry = {
       ...historyEntry(),

@@ -15,7 +15,7 @@ Implemented:
 - Rust HTTP engine built on `reqwest`, with timeouts, cancellation, response
   size limits, and CORS-free execution
 - Response viewer with status, elapsed time, size, headers, and body
-- SQLite workspace: collections, nested folders, saved requests, and history
+- SQLite workspace: collections, nested folders, saved requests, sidebar move actions, and history
 - Request history with search, reopen, per-entry delete, and clear all
 - Credential values are never written to SQLite
 

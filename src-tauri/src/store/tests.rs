@@ -255,6 +255,43 @@ async fn rejects_moving_a_folder_into_its_own_subtree() {
 }
 
 #[tokio::test]
+async fn moves_a_folder_subtree_and_its_requests_to_another_collection() {
+    let store = Store::open_in_memory().await.unwrap();
+    let source_collection = store.create_collection("Draft APIs").await.unwrap();
+    let target_collection = store.create_collection("Production APIs").await.unwrap();
+    let parent = store
+        .create_folder(&source_collection.id, None, "Users")
+        .await
+        .unwrap();
+    let child = store
+        .create_folder(&source_collection.id, Some(&parent.id), "Archived")
+        .await
+        .unwrap();
+    let mut input = save_input(&source_collection.id, "List archived users");
+    input.folder_id = Some(child.id.clone());
+    let saved = store.save_request(input).await.unwrap();
+
+    store
+        .move_folder(&parent.id, &target_collection.id, None, 0)
+        .await
+        .unwrap();
+
+    let tree = store.load_tree().await.unwrap();
+    assert!(tree
+        .folders
+        .iter()
+        .filter(|folder| folder.id == parent.id || folder.id == child.id)
+        .all(|folder| folder.collection_id == target_collection.id));
+    let moved_request = tree
+        .requests
+        .iter()
+        .find(|request| request.id == saved.id)
+        .unwrap();
+    assert_eq!(moved_request.collection_id, target_collection.id);
+    assert_eq!(moved_request.folder_id.as_deref(), Some(child.id.as_str()));
+}
+
+#[tokio::test]
 async fn deleting_a_collection_removes_its_contents() {
     let store = Store::open_in_memory().await.unwrap();
     let collection = store.create_collection("APIs").await.unwrap();

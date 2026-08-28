@@ -104,11 +104,13 @@ interface AppState {
   deleteCollection: (id: string) => Promise<void>;
   createFolder: (collectionId: string, parentId: string | null, name: string) => Promise<void>;
   renameFolder: (id: string, name: string) => Promise<void>;
+  moveFolder: (id: string, collectionId: string, parentId: string | null) => Promise<boolean>;
   deleteFolder: (id: string) => Promise<void>;
   saveDraft: (collectionId?: string, folderId?: string | null) => Promise<void>;
   openSavedRequest: (id: string) => Promise<void>;
   renameRequest: (id: string, name: string) => Promise<void>;
   duplicateRequest: (id: string) => Promise<void>;
+  moveRequest: (id: string, collectionId: string, folderId: string | null) => Promise<boolean>;
   deleteRequest: (id: string) => Promise<void>;
 
   setHistorySearch: (search: string) => void;
@@ -241,6 +243,36 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!renamed.ok) return;
     set((state) => ({ folders: state.folders.map((item) => (item.id === id ? renamed.value : item)) }));
   },
+  moveFolder: async (id, collectionId, parentId) => {
+    const position = get().folders.filter(
+      (folder) => folder.id !== id && folder.collectionId === collectionId && folder.parentId === parentId,
+    ).length;
+    const moved = await attempt(() => collectionsClient.moveFolder(id, collectionId, parentId, position));
+    if (!moved.ok) return false;
+
+    // Reload the canonical tree because moving a folder across collections also
+    // moves every descendant folder and saved request in that subtree.
+    const refreshed = await attempt(() => collectionsClient.loadWorkspaceTree());
+    // The move has already committed. Close the dialog even if refreshing the
+    // tree fails; `attempt` reports the refresh problem and a later reload will
+    // recover the canonical state without repeating the move.
+    if (!refreshed.ok) return true;
+    set((state) => {
+      const openRequest = refreshed.value.requests.find((request) => request.id === state.draft.savedRequestId);
+      return {
+        workspaceId: refreshed.value.workspaceId,
+        collections: refreshed.value.collections,
+        folders: refreshed.value.folders,
+        requests: refreshed.value.requests,
+        workspaceError: null,
+        expandedNodes: { ...state.expandedNodes, [collectionId]: true, ...(parentId ? { [parentId]: true } : {}) },
+        draft: openRequest
+          ? { ...state.draft, collectionId: openRequest.collectionId, folderId: openRequest.folderId }
+          : state.draft,
+      };
+    });
+    return true;
+  },
   deleteFolder: async (id) => {
     const deleted = await attempt(() => collectionsClient.deleteFolder(id));
     if (!deleted.ok) return;
@@ -285,6 +317,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     const copied = await attempt(() => collectionsClient.duplicateRequest(id));
     if (!copied.ok) return;
     await get().loadWorkspace();
+  },
+  moveRequest: async (id, collectionId, folderId) => {
+    const position = get().requests.filter(
+      (request) => request.id !== id && request.collectionId === collectionId && request.folderId === folderId,
+    ).length;
+    const moved = await attempt(() => collectionsClient.moveRequest(id, collectionId, folderId, position));
+    if (!moved.ok) return false;
+
+    const refreshed = await attempt(() => collectionsClient.loadWorkspaceTree());
+    if (!refreshed.ok) return true;
+    set((state) => {
+      const openRequest = refreshed.value.requests.find((request) => request.id === state.draft.savedRequestId);
+      return {
+        workspaceId: refreshed.value.workspaceId,
+        collections: refreshed.value.collections,
+        folders: refreshed.value.folders,
+        requests: refreshed.value.requests,
+        workspaceError: null,
+        expandedNodes: { ...state.expandedNodes, [collectionId]: true, ...(folderId ? { [folderId]: true } : {}) },
+        draft: openRequest
+          ? { ...state.draft, collectionId: openRequest.collectionId, folderId: openRequest.folderId }
+          : state.draft,
+      };
+    });
+    return true;
   },
   deleteRequest: async (id) => {
     const deleted = await attempt(() => collectionsClient.deleteRequest(id));

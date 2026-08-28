@@ -145,7 +145,7 @@ Goal: Allow users to save requests and resume work after restarting the app.
 - [x] Reopen requests from collections or history in the editor.
 - [x] Add search, rename, duplicate, and delete operations.
 - [x] Add move operations to the repository and command layer.
-- [ ] Expose moving through the sidebar; drag and drop is deferred to Phase 5.
+- [x] Expose moving through the sidebar with a keyboard-accessible destination dialog; drag and drop is deferred to Phase 5.
 - [x] Define a retention policy and clear-history workflow.
 - [x] Never store authentication secrets in SQLite.
 
@@ -154,13 +154,13 @@ Goal: Allow users to save requests and resume work after restarting the app.
 - [x] Store request metadata and non-secret values as structured data.
 - [x] Store large bodies only within defined limits.
 - [x] Use foreign keys and transactions for move/delete operations.
-- [x] Support migrations from the previous schema version.
+- [x] Keep the initial migration idempotent for both new and already-migrated databases.
 
 ### Definition of Done
 
 - [x] Saved requests and collections remain available after restart.
 - [x] History is created when a request finishes and can be reopened.
-- [x] Migrations work for both a new database and a database from the previous version.
+- [x] The initial migration works for both a new database and an already-migrated database.
 - [x] Database failures produce recoverable errors without closing the app.
 
 ### Implementation Notes
@@ -221,6 +221,7 @@ Goal: Make Laika fast and predictable enough for everyday use.
 - [ ] Add request tabs with dirty state and confirmation before closing.
 - [ ] Add keyboard shortcuts for send, save, new request, and tab navigation.
 - [ ] Make the sidebar and response panel resizable and collapsible.
+- [ ] Add drag-and-drop moving and reordering for sidebar folders and requests.
 - [ ] Add response search and header filtering.
 - [ ] Generate code snippets such as cURL.
 - [ ] Import cURL and export/import Laika collections.
@@ -308,7 +309,7 @@ pnpm tauri build
 Begin Phase 4 in the following order:
 
 1. Add the environment and variable data model to the existing schema as
-   migration `0002`.
+   migration `0002`, including an upgrade test from schema version 1.
 2. Build the environment manager UI and active-environment selector.
 3. Resolve `{{variable}}` references in URLs, parameters, headers, bodies, and
    authentication, and report unresolved names before sending.

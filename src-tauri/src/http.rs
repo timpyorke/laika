@@ -1,3 +1,4 @@
+use crate::error::ApplicationError;
 use reqwest::{
     header::{HeaderName, HeaderValue, CONTENT_TYPE},
     Client, Method, Url,
@@ -9,7 +10,6 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tauri::State;
 use tokio_util::sync::CancellationToken;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
@@ -30,6 +30,12 @@ fn default_max_response_bytes() -> u64 {
 #[serde(rename_all = "camelCase")]
 pub struct HttpRequestInput {
     pub request_id: String,
+    /// Set when the execution came from a request saved in a collection, so the
+    /// history entry can link back to it. `None` for ad-hoc requests.
+    #[serde(default)]
+    pub saved_request_id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
     pub method: HttpMethod,
     pub url: String,
     #[serde(default)]
@@ -54,6 +60,20 @@ pub enum HttpMethod {
     Delete,
     Head,
     Options,
+}
+
+impl HttpMethod {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HttpMethod::Get => "GET",
+            HttpMethod::Post => "POST",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Patch => "PATCH",
+            HttpMethod::Delete => "DELETE",
+            HttpMethod::Head => "HEAD",
+            HttpMethod::Options => "OPTIONS",
+        }
+    }
 }
 
 impl From<HttpMethod> for Method {
@@ -113,113 +133,6 @@ pub struct HttpResponseOutput {
 pub struct ResponseHeader {
     pub name: String,
     pub value: String,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ApplicationErrorCode {
-    InvalidRequest,
-    InvalidUrl,
-    InvalidHeader,
-    InvalidBody,
-    InvalidAuth,
-    NetworkError,
-    Timeout,
-    TlsError,
-    Cancelled,
-    UnexpectedError,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplicationError {
-    pub code: ApplicationErrorCode,
-    pub title: &'static str,
-    pub message: &'static str,
-    pub recoverable: bool,
-}
-
-impl ApplicationError {
-    fn new(code: ApplicationErrorCode, title: &'static str, message: &'static str) -> Self {
-        Self {
-            code,
-            title,
-            message,
-            recoverable: true,
-        }
-    }
-
-    fn invalid_request() -> Self {
-        Self::new(
-            ApplicationErrorCode::InvalidRequest,
-            "Invalid request settings",
-            "Set the timeout between 0.1 and 300 seconds, then try again.",
-        )
-    }
-
-    fn invalid_url() -> Self {
-        Self::new(
-            ApplicationErrorCode::InvalidUrl,
-            "Invalid request URL",
-            "Enter a complete HTTP or HTTPS URL and try again.",
-        )
-    }
-    fn invalid_header() -> Self {
-        Self::new(
-            ApplicationErrorCode::InvalidHeader,
-            "Invalid request header",
-            "Check the enabled header names and values, then try again.",
-        )
-    }
-    fn invalid_body() -> Self {
-        Self::new(
-            ApplicationErrorCode::InvalidBody,
-            "Invalid request body",
-            "The JSON request body is not valid.",
-        )
-    }
-    fn invalid_auth() -> Self {
-        Self::new(
-            ApplicationErrorCode::InvalidAuth,
-            "Authentication is incomplete",
-            "Enter the required authentication fields and try again.",
-        )
-    }
-    fn timeout() -> Self {
-        Self::new(
-            ApplicationErrorCode::Timeout,
-            "Request timed out",
-            "Increase the timeout or check whether the server is responding.",
-        )
-    }
-    fn cancelled() -> Self {
-        Self::new(
-            ApplicationErrorCode::Cancelled,
-            "Request cancelled",
-            "The request was stopped before it completed.",
-        )
-    }
-    fn network() -> Self {
-        Self::new(
-            ApplicationErrorCode::NetworkError,
-            "Could not reach the server",
-            "Check the address and your network connection, then try again.",
-        )
-    }
-    fn tls() -> Self {
-        Self::new(
-            ApplicationErrorCode::TlsError,
-            "Secure connection failed",
-            "The server certificate or TLS configuration could not be verified.",
-        )
-    }
-    fn unexpected() -> Self {
-        Self::new(
-            ApplicationErrorCode::UnexpectedError,
-            "Request failed",
-            "An unexpected error occurred while processing the request.",
-        )
-    }
 }
 
 #[derive(Debug)]
@@ -469,22 +382,10 @@ fn classify_reqwest_error(error: reqwest::Error) -> ApplicationError {
     }
 }
 
-#[tauri::command]
-pub async fn execute_http_request(
-    state: State<'_, HttpEngine>,
-    request: HttpRequestInput,
-) -> Result<HttpResponseOutput, ApplicationError> {
-    state.execute(request).await
-}
-
-#[tauri::command]
-pub fn cancel_http_request(state: State<'_, HttpEngine>, request_id: String) -> bool {
-    state.cancel(&request_id)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ApplicationErrorCode;
     use tokio::time::sleep;
     use wiremock::{
         matchers::{body_json, body_string, header, method, path, query_param},
@@ -494,6 +395,8 @@ mod tests {
     fn request(url: String) -> HttpRequestInput {
         HttpRequestInput {
             request_id: "test-request".to_owned(),
+            saved_request_id: None,
+            name: None,
             method: HttpMethod::Get,
             url,
             params: Vec::new(),

@@ -10,6 +10,10 @@ const errors: Record<ApplicationErrorCode, Omit<ApplicationError, "code">> = {
   TIMEOUT: { title: "Request timed out", message: "Increase the timeout or check whether the server is responding.", recoverable: true },
   TLS_ERROR: { title: "Secure connection failed", message: "The server certificate or TLS configuration could not be verified.", recoverable: true },
   CANCELLED: { title: "Request cancelled", message: "The request was stopped before it completed.", recoverable: true },
+  INVALID_INPUT: { title: "Invalid value", message: "Enter a name between 1 and 200 characters, then try again.", recoverable: true },
+  NOT_FOUND: { title: "Item no longer exists", message: "This item was removed. Refresh the workspace and try again.", recoverable: true },
+  DATABASE_ERROR: { title: "Workspace could not be updated", message: "The change was not saved. Try again, and restart Laika if the problem continues.", recoverable: true },
+  DATABASE_UNAVAILABLE: { title: "Workspace storage is unavailable", message: "Laika could not open its local database, so collections and history are disabled.", recoverable: true },
   UNEXPECTED_ERROR: { title: "Request failed", message: "An unexpected error occurred while processing the request.", recoverable: true },
 };
 

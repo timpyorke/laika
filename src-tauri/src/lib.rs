@@ -1,6 +1,10 @@
+mod error;
 mod http;
+mod store;
 
-use http::{cancel_http_request, execute_http_request, HttpEngine};
+use http::HttpEngine;
+use store::{commands, Store, StoreHandle};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -9,10 +13,48 @@ pub fn run() {
     tauri::Builder::default()
         .manage(http_engine)
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            app.manage(open_store(app.handle()));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            execute_http_request,
-            cancel_http_request
+            commands::execute_http_request,
+            commands::cancel_http_request,
+            commands::load_workspace_tree,
+            commands::create_collection,
+            commands::rename_collection,
+            commands::delete_collection,
+            commands::create_folder,
+            commands::rename_folder,
+            commands::delete_folder,
+            commands::move_folder,
+            commands::save_request,
+            commands::get_saved_request,
+            commands::rename_request,
+            commands::duplicate_request,
+            commands::move_request,
+            commands::delete_request,
+            commands::list_history,
+            commands::get_history_entry,
+            commands::delete_history_entry,
+            commands::clear_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Opening the workspace must not be able to stop the app from starting. If the
+/// database cannot be created or migrated, the window still opens and every
+/// workspace command reports a recoverable error instead.
+fn open_store(app: &tauri::AppHandle) -> StoreHandle {
+    let Ok(directory) = app.path().app_data_dir() else {
+        return StoreHandle::unavailable();
+    };
+    if std::fs::create_dir_all(&directory).is_err() {
+        return StoreHandle::unavailable();
+    }
+    match tauri::async_runtime::block_on(Store::open(&directory.join("laika.db"))) {
+        Ok(store) => StoreHandle::ready(store),
+        Err(_) => StoreHandle::unavailable(),
+    }
 }

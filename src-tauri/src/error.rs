@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -13,6 +14,10 @@ pub enum ApplicationErrorCode {
     TlsError,
     Cancelled,
     InvalidInput,
+    InvalidVariable,
+    UnresolvedVariables,
+    SecretStoreLocked,
+    SecretStoreError,
     NotFound,
     DatabaseError,
     DatabaseUnavailable,
@@ -35,6 +40,10 @@ impl ApplicationErrorCode {
             Self::TlsError => "TLS_ERROR",
             Self::Cancelled => "CANCELLED",
             Self::InvalidInput => "INVALID_INPUT",
+            Self::InvalidVariable => "INVALID_VARIABLE",
+            Self::UnresolvedVariables => "UNRESOLVED_VARIABLES",
+            Self::SecretStoreLocked => "SECRET_STORE_LOCKED",
+            Self::SecretStoreError => "SECRET_STORE_ERROR",
             Self::NotFound => "NOT_FOUND",
             Self::DatabaseError => "DATABASE_ERROR",
             Self::DatabaseUnavailable => "DATABASE_UNAVAILABLE",
@@ -52,6 +61,10 @@ impl ApplicationErrorCode {
                 | Self::InvalidHeader
                 | Self::InvalidBody
                 | Self::InvalidAuth
+                | Self::InvalidVariable
+                | Self::UnresolvedVariables
+                | Self::SecretStoreLocked
+                | Self::SecretStoreError
                 | Self::Cancelled
         )
     }
@@ -62,13 +75,15 @@ impl ApplicationErrorCode {
 /// Messages are `&'static str` on purpose: nothing derived from a request, a
 /// database row, or a driver error can leak into the payload that reaches the
 /// UI, the notification system, or a history entry.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationError {
     pub code: ApplicationErrorCode,
     pub title: &'static str,
     pub message: &'static str,
     pub recoverable: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<BTreeMap<String, String>>,
 }
 
 impl ApplicationError {
@@ -78,6 +93,7 @@ impl ApplicationError {
             title,
             message,
             recoverable: true,
+            details: None,
         }
     }
 
@@ -158,6 +174,40 @@ impl ApplicationError {
             ApplicationErrorCode::InvalidInput,
             "Invalid value",
             "Enter a name between 1 and 200 characters, then try again.",
+        )
+    }
+
+    pub fn invalid_variable() -> Self {
+        Self::new(
+            ApplicationErrorCode::InvalidVariable,
+            "Invalid variable",
+            "Use a name beginning with a letter or underscore, followed by letters, numbers, dots, dashes, or underscores.",
+        )
+    }
+
+    pub fn unresolved_variables(names: &[String]) -> Self {
+        let mut error = Self::new(
+            ApplicationErrorCode::UnresolvedVariables,
+            "Some variables are undefined",
+            "Define the listed variables for this workspace or active environment before sending.",
+        );
+        error.details = Some(BTreeMap::from([("variables".to_owned(), names.join(", "))]));
+        error
+    }
+
+    pub fn secret_store_locked() -> Self {
+        Self::new(
+            ApplicationErrorCode::SecretStoreLocked,
+            "Secret vault is locked",
+            "Unlock the secret vault before using or changing protected values.",
+        )
+    }
+
+    pub fn secret_store() -> Self {
+        Self::new(
+            ApplicationErrorCode::SecretStoreError,
+            "Secret vault could not be opened",
+            "Check the master password and try again.",
         )
     }
 

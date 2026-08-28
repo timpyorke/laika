@@ -35,6 +35,9 @@ export function AppShell() {
   const setEnvironmentDialogOpen = useAppStore((state) => state.setEnvironmentDialogOpen);
   const loadWorkspace = useAppStore((state) => state.loadWorkspace);
   const newRequest = useAppStore((state) => state.newRequest);
+  const environments = useAppStore((state) => state.environments);
+  const activeEnvironmentId = useAppStore((state) => state.activeEnvironmentId);
+  const setActiveEnvironment = useAppStore((state) => state.setActiveEnvironment);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -67,6 +70,16 @@ export function AppShell() {
           </Button>
         </div>
         <div className="ml-3 flex items-center gap-1">
+          <select
+            className="h-8 max-w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-xs"
+            value={activeEnvironmentId ?? ""}
+            onChange={(event) => void setActiveEnvironment(event.target.value || null)}
+            aria-label="Active environment"
+            title="Active environment"
+          >
+            <option value="">No environment</option>
+            {environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name}</option>)}
+          </select>
           <Button variant="ghost" size="icon" onClick={() => setEnvironmentDialogOpen(true)} aria-label="Manage environments" title="Environments">
             <Variable size={16} />
           </Button>

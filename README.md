@@ -6,7 +6,7 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-Phases 0 through 3 of [docs/plan.md](docs/plan.md) are complete.
+Phases 0 through 4 of [docs/plan.md](docs/plan.md) are complete.
 
 Implemented:
 
@@ -18,11 +18,13 @@ Implemented:
 - SQLite workspace: collections, nested folders, saved requests, sidebar move actions, and history
 - Request history with search, reopen, per-entry delete, and clear all
 - Credential values are never written to SQLite
+- Workspace/environment variables with an active-environment selector and
+  `{{variable}}` resolution across every request field
+- Stronghold-backed secret vault for variables and saved authentication, with
+  masked values and explicit reveal/copy actions
 
 Not implemented yet:
 
-- Environment variables and `{{variable}}` resolution
-- Secret storage with Stronghold
 - Drag-and-drop reordering in the sidebar
 - Monaco editor, cURL import/export, and request tabs
 - API testing assertions and a collection runner
@@ -39,12 +41,12 @@ Current:
 - Rust
 - `reqwest` for HTTP execution
 - `sqlx` with SQLite for local collections, history, and workspace data
+- Stronghold for encrypted local secrets
 - Zustand for frontend state
 - Tailwind CSS and shadcn/ui for the application UI
 
 Planned:
 
-- Stronghold for secrets and auth values
 - Monaco Editor for JSON, raw body, and response editing
 
 ## Project Structure
@@ -69,6 +71,8 @@ Planned:
 │   ├── src/
 │   │   ├── error.rs         Shared user-facing error contract
 │   │   ├── http.rs          HTTP engine built on reqwest
+│   │   ├── secrets.rs       Stronghold-backed encrypted secret vault
+│   │   ├── variables.rs     Request variable resolution and validation
 │   │   ├── store/           SQLite repository layer and Tauri commands
 │   │   ├── lib.rs           Tauri command registration and app builder
 │   │   └── main.rs          Native entrypoint
@@ -189,9 +193,11 @@ The workspace database is created on first launch at:
 %APPDATA%\com.codenour.laika\laika.db
 ```
 
-It stores collections, folders, saved requests, and history. Authentication
-tokens and passwords are never written to it; credential header values are
-redacted before a row is saved. Deleting the file resets the workspace.
+It stores collections, folders, saved requests, environments, opaque secret
+references, and history. Authentication tokens, passwords, and secret variable
+values are stored in `laika.stronghold`, never as plaintext in SQLite.
+Credential values are redacted before history is saved. Deleting both local
+files resets the workspace and vault.
 
 ### Later
 

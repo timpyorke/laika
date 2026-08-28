@@ -75,6 +75,11 @@ export function serializeSaveRequest(
     body: draft.body,
     form: serializeRows(draft.form),
     auth: serializeAuthRecord(draft),
+    authSecret: draft.auth.type === "bearer"
+      ? (draft.auth.hasStoredSecret && draft.auth.bearerToken === "" ? null : draft.auth.bearerToken)
+      : draft.auth.type === "basic"
+        ? (draft.auth.hasStoredSecret && draft.auth.password === "" ? null : draft.auth.password)
+        : null,
     timeoutMs: draft.timeoutMs,
   };
 }
@@ -98,6 +103,7 @@ export function draftFromSavedRequest(saved: SavedRequest): RequestDraft {
       bearerToken: "",
       username: saved.auth.type === "basic" ? saved.auth.username : "",
       password: "",
+      hasStoredSecret: saved.hasAuthSecret,
     },
     timeoutMs: saved.timeoutMs,
   };
@@ -124,7 +130,7 @@ export function draftFromHistoryEntry(entry: HistoryEntry): RequestDraft {
     body: request.body,
     bodyMode: request.bodyMode,
     form: rowsOrBlank(request.form),
-    auth: { type: authType, bearerToken: "", username: request.authUsername, password: "" },
+    auth: { type: authType, bearerToken: "", username: request.authUsername, password: "", hasStoredSecret: false },
     timeoutMs: request.timeoutMs,
   };
 }

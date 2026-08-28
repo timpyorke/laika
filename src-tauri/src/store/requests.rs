@@ -9,8 +9,8 @@ use sqlx::{Sqlite, Transaction};
 impl Store {
     /// Creates or updates a saved request.
     ///
-    /// Secret material is dropped on the way in: `auth_secret_ref` stays NULL
-    /// until Phase 4, and credential header values are redacted. Bodies larger
+    /// Secret material itself has no field in this layer; only an opaque
+    /// Stronghold reference is persisted. Credential header values are redacted. Bodies larger
     /// than [`MAX_STORED_BODY_BYTES`](super::models::MAX_STORED_BODY_BYTES) are
     /// stored truncated.
     pub async fn save_request(
@@ -35,7 +35,7 @@ impl Store {
                 "UPDATE saved_request SET
                      collection_id = ?, folder_id = ?, name = ?, method = ?, url = ?,
                      params_json = ?, headers_json = ?, body_mode = ?, body = ?, form_json = ?,
-                     auth_type = ?, auth_username = ?, timeout_ms = ?, updated_at = ?
+                     auth_type = ?, auth_username = ?, auth_secret_ref = ?, timeout_ms = ?, updated_at = ?
                  WHERE id = ?
                  RETURNING *",
             )
@@ -51,6 +51,7 @@ impl Store {
             .bind(&form_json)
             .bind(input.auth.kind())
             .bind(input.auth.username())
+            .bind(&input.auth_secret_ref)
             .bind(input.timeout_ms)
             .bind(timestamp)
             .bind(&id)
@@ -69,7 +70,7 @@ impl Store {
                          auth_type, auth_username, auth_secret_ref, timeout_ms,
                          position, created_at, updated_at
                      )
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                      RETURNING *",
                 )
                 .bind(new_id())
@@ -85,6 +86,7 @@ impl Store {
                 .bind(&form_json)
                 .bind(input.auth.kind())
                 .bind(input.auth.username())
+                .bind(&input.auth_secret_ref)
                 .bind(input.timeout_ms)
                 .bind(position)
                 .bind(timestamp)
@@ -150,7 +152,7 @@ impl Store {
              )
              SELECT ?, collection_id, folder_id, ?, method, url,
                     params_json, headers_json, body_mode, body, form_json,
-                    auth_type, auth_username, NULL, timeout_ms,
+                    auth_type, auth_username, auth_secret_ref, timeout_ms,
                     ?, ?, ?
              FROM saved_request WHERE id = ?
              RETURNING *",
@@ -166,6 +168,26 @@ impl Store {
         .map_err(map_sqlx_error)?;
 
         Ok(map_saved_request(&row))
+    }
+
+    pub async fn set_request_auth_secret_ref(
+        &self,
+        id: &str,
+        secret_ref: Option<&str>,
+    ) -> Result<(), ApplicationError> {
+        let result = sqlx::query(
+            "UPDATE saved_request SET auth_secret_ref = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(secret_ref)
+        .bind(now_ms())
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_sqlx_error)?;
+        if result.rows_affected() == 0 {
+            return Err(ApplicationError::not_found());
+        }
+        Ok(())
     }
 
     pub async fn move_request(

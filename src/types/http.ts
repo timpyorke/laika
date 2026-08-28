@@ -16,6 +16,7 @@ export interface RequestAuthDraft {
   bearerToken: string;
   username: string;
   password: string;
+  hasStoredSecret: boolean;
 }
 
 export interface RequestDraft {
@@ -81,6 +82,7 @@ export type ApplicationErrorCode =
   | "INVALID_REQUEST" | "INVALID_URL" | "INVALID_HEADER" | "INVALID_BODY" | "INVALID_AUTH"
   | "NETWORK_ERROR" | "TIMEOUT" | "TLS_ERROR" | "CANCELLED"
   | "INVALID_INPUT" | "NOT_FOUND" | "DATABASE_ERROR" | "DATABASE_UNAVAILABLE"
+  | "INVALID_VARIABLE" | "UNRESOLVED_VARIABLES" | "SECRET_STORE_LOCKED" | "SECRET_STORE_ERROR"
   | "UNEXPECTED_ERROR";
 
 export interface ApplicationError {
@@ -88,4 +90,5 @@ export interface ApplicationError {
   title: string;
   message: string;
   recoverable: boolean;
+  details?: Record<string, string>;
 }

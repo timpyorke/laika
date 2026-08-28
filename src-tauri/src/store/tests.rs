@@ -1,6 +1,7 @@
 use super::history::{HistoryDraft, HistoryResponse};
 use super::models::{
-    AuthRecord, KeyValueRecord, RequestSnapshot, SaveRequestInput, MAX_STORED_BODY_BYTES,
+    AuthRecord, KeyValueRecord, PersistVariableInput, RequestSnapshot, SaveRequestInput,
+    MAX_STORED_BODY_BYTES,
 };
 use super::Store;
 use crate::error::ApplicationErrorCode;
@@ -27,6 +28,7 @@ fn save_input(collection_id: &str, name: &str) -> SaveRequestInput {
         body: String::new(),
         form: Vec::new(),
         auth: AuthRecord::None,
+        auth_secret_ref: None,
         timeout_ms: 30_000,
     }
 }
@@ -90,6 +92,96 @@ async fn migrations_are_idempotent_across_restarts() {
     for suffix in ["", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
     }
+}
+
+#[tokio::test]
+async fn upgrades_a_version_one_database_without_losing_workspace_data() {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    let token = super::models::new_id();
+    let directory = std::env::temp_dir().join(format!("laika-v1-{token}"));
+    let migrations = directory.join("migrations");
+    std::fs::create_dir_all(&migrations).unwrap();
+    std::fs::write(
+        migrations.join("0001_initial.sql"),
+        include_str!("../../migrations/0001_initial.sql"),
+    )
+    .unwrap();
+    let database = directory.join("laika.db");
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&database)
+                .create_if_missing(true)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+    sqlx::migrate::Migrator::new(migrations.as_path())
+        .await
+        .unwrap()
+        .run(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO workspace (id, name, created_at, updated_at) VALUES ('workspace-v1', 'Existing', 1, 1)")
+        .execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO collection (id, workspace_id, name, position, created_at, updated_at) VALUES ('collection-v1', 'workspace-v1', 'Preserved', 0, 1, 1)")
+        .execute(&pool).await.unwrap();
+    pool.close().await;
+
+    let upgraded = Store::open(&database).await.unwrap();
+    let tree = upgraded.load_tree().await.unwrap();
+    assert_eq!(tree.collections[0].name, "Preserved");
+    assert!(upgraded
+        .load_environment_state()
+        .await
+        .unwrap()
+        .environments
+        .is_empty());
+    drop(upgraded);
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[tokio::test]
+async fn active_environment_overrides_workspace_variables() {
+    let store = Store::open_in_memory().await.unwrap();
+    let environment = store.create_environment("Production").await.unwrap();
+    store
+        .save_variable(PersistVariableInput {
+            id: None,
+            environment_id: None,
+            name: "baseUrl".to_owned(),
+            value: "https://workspace.example".to_owned(),
+            is_secret: false,
+            secret_ref: None,
+        })
+        .await
+        .unwrap();
+    store
+        .save_variable(PersistVariableInput {
+            id: None,
+            environment_id: Some(environment.id.clone()),
+            name: "baseUrl".to_owned(),
+            value: "https://production.example".to_owned(),
+            is_secret: false,
+            secret_ref: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        store.effective_variables().await.unwrap()["baseUrl"].value,
+        "https://workspace.example"
+    );
+    store
+        .set_active_environment(Some(&environment.id))
+        .await
+        .unwrap();
+    assert_eq!(
+        store.effective_variables().await.unwrap()["baseUrl"].value,
+        "https://production.example"
+    );
 }
 
 #[tokio::test]

@@ -61,6 +61,7 @@ export interface SavedRequest {
   body: string;
   form: KeyValueRecord[];
   auth: AuthRecord;
+  hasAuthSecret: boolean;
   timeoutMs: number;
 }
 
@@ -78,6 +79,7 @@ export interface SaveRequestInput {
   body: string;
   form: KeyValueRecord[];
   auth: AuthRecord;
+  authSecret: string | null;
   timeoutMs: number;
 }
 

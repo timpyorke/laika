@@ -151,13 +151,14 @@ export function RequestWorkspace() {
             {draft.auth.type === "bearer" ? (
               <label className="grid gap-2 text-sm font-medium">
                 Token
-                <Input type="password" value={draft.auth.bearerToken} onChange={(event) => updateAuth({ bearerToken: event.target.value })} autoComplete="off" />
+                <Input type="password" value={draft.auth.bearerToken} placeholder={draft.auth.hasStoredSecret ? "Stored in secret vault" : undefined} onChange={(event) => updateAuth({ bearerToken: event.target.value })} autoComplete="off" />
+                {draft.auth.hasStoredSecret ? <span className="text-xs font-normal text-[var(--muted)]">Leave blank to keep the stored token.</span> : null}
               </label>
             ) : null}
             {draft.auth.type === "basic" ? (
               <div className="grid grid-cols-2 gap-3">
                 <label className="grid gap-2 text-sm font-medium">Username<Input value={draft.auth.username} onChange={(event) => updateAuth({ username: event.target.value })} autoComplete="off" /></label>
-                <label className="grid gap-2 text-sm font-medium">Password<Input type="password" value={draft.auth.password} onChange={(event) => updateAuth({ password: event.target.value })} autoComplete="off" /></label>
+                <label className="grid gap-2 text-sm font-medium">Password<Input type="password" value={draft.auth.password} placeholder={draft.auth.hasStoredSecret ? "Stored in secret vault" : undefined} onChange={(event) => updateAuth({ password: event.target.value })} autoComplete="off" />{draft.auth.hasStoredSecret ? <span className="text-xs font-normal text-[var(--muted)]">Leave blank to keep it.</span> : null}</label>
               </div>
             ) : null}
             <label className="grid max-w-40 gap-2 border-t border-[var(--border)] pt-4 text-sm font-medium">

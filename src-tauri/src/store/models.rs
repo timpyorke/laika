@@ -103,6 +103,65 @@ pub struct WorkspaceTree {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Environment {
+    pub id: String,
+    pub name: String,
+    pub position: i64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvironmentVariable {
+    pub id: String,
+    pub environment_id: Option<String>,
+    pub name: String,
+    /// Always empty for secret variables.
+    pub value: String,
+    pub is_secret: bool,
+    pub has_secret: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvironmentState {
+    pub environments: Vec<Environment>,
+    pub variables: Vec<EnvironmentVariable>,
+    pub active_environment_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveVariableInput {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub environment_id: Option<String>,
+    pub name: String,
+    #[serde(default)]
+    pub value: String,
+    #[serde(default)]
+    pub is_secret: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct StoredVariable {
+    pub value: String,
+    pub is_secret: bool,
+    pub secret_ref: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PersistVariableInput {
+    pub id: Option<String>,
+    pub environment_id: Option<String>,
+    pub name: String,
+    pub value: String,
+    pub is_secret: bool,
+    pub secret_ref: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedRequest {
     pub id: String,
     pub collection_id: String,
@@ -116,6 +175,9 @@ pub struct SavedRequest {
     pub body: String,
     pub form: Vec<KeyValueRecord>,
     pub auth: AuthRecord,
+    pub has_auth_secret: bool,
+    #[serde(skip)]
+    pub auth_secret_ref: Option<String>,
     pub timeout_ms: i64,
 }
 
@@ -141,7 +203,18 @@ pub struct SaveRequestInput {
     #[serde(default)]
     pub form: Vec<KeyValueRecord>,
     pub auth: AuthRecord,
+    #[serde(skip)]
+    pub auth_secret_ref: Option<String>,
     pub timeout_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveRequestCommandInput {
+    #[serde(flatten)]
+    pub request: SaveRequestInput,
+    #[serde(default)]
+    pub auth_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -292,6 +365,7 @@ pub fn map_saved_request(row: &SqliteRow) -> SavedRequest {
         },
         _ => AuthRecord::None,
     };
+    let auth_secret_ref: Option<String> = row.get("auth_secret_ref");
     SavedRequest {
         id: row.get("id"),
         collection_id: row.get("collection_id"),
@@ -305,6 +379,8 @@ pub fn map_saved_request(row: &SqliteRow) -> SavedRequest {
         body: row.get("body"),
         form: decode_entries(row.get::<String, _>("form_json").as_str()),
         auth,
+        has_auth_secret: auth_secret_ref.is_some(),
+        auth_secret_ref,
         timeout_ms: row.get("timeout_ms"),
     }
 }

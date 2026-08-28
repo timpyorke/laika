@@ -2,11 +2,13 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import * as collectionsClient from "../features/collections/collections-client";
 import * as historyClient from "../features/history/history-client";
+import * as environmentClient from "../features/environments/environment-client";
 import { cancelHttpRequest, executeHttpRequest } from "../features/request/request-client";
 import { draftFromHistoryEntry, draftFromSavedRequest, serializeRequest, serializeSaveRequest } from "../features/request/request-serialization";
 import { normalizeApplicationError } from "../lib/application-error";
 import type { ApplicationError, AuthType, BodyMode, HttpMethod, HttpResponse, KeyValueEntry, RequestDraft, RequestEditorTab, ResponseBodyView, ResponseViewerTab } from "../types/http";
 import type { Collection, Folder, HistorySummary, RequestSummary } from "../types/workspace";
+import type { Environment, EnvironmentVariable, SaveVariableInput, SecretStoreStatus } from "../types/environment";
 
 const emptyRow = (): KeyValueEntry => ({ id: crypto.randomUUID(), enabled: true, key: "", value: "" });
 
@@ -23,7 +25,7 @@ const newDraft = (): RequestDraft => ({
   body: "",
   bodyMode: "none",
   form: [emptyRow()],
-  auth: { type: "none", bearerToken: "", username: "", password: "" },
+  auth: { type: "none", bearerToken: "", username: "", password: "", hasStoredSecret: false },
   timeoutMs: 30_000,
 });
 
@@ -74,6 +76,10 @@ interface AppState {
   history: HistorySummary[];
   historySearch: string;
   historyLoading: boolean;
+  environments: Environment[];
+  environmentVariables: EnvironmentVariable[];
+  activeEnvironmentId: string | null;
+  secretStoreStatus: SecretStoreStatus;
 
   setTheme: (theme: Theme) => void;
   setMethod: (method: HttpMethod) => void;
@@ -118,6 +124,15 @@ interface AppState {
   openHistoryEntry: (id: string) => Promise<void>;
   deleteHistoryEntry: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
+  loadEnvironments: () => Promise<void>;
+  createEnvironment: (name: string) => Promise<void>;
+  renameEnvironment: (id: string, name: string) => Promise<void>;
+  deleteEnvironment: (id: string) => Promise<void>;
+  setActiveEnvironment: (id: string | null) => Promise<void>;
+  saveEnvironmentVariable: (variable: SaveVariableInput) => Promise<void>;
+  deleteEnvironmentVariable: (id: string) => Promise<void>;
+  unlockSecretStore: (password: string) => Promise<boolean>;
+  lockSecretStore: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -145,6 +160,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   history: [],
   historySearch: "",
   historyLoading: false,
+  environments: [],
+  environmentVariables: [],
+  activeEnvironmentId: null,
+  secretStoreStatus: { initialized: false, unlocked: false },
 
   setTheme: (theme) => set({ theme }),
   setMethod: (method) => set((state) => ({ draft: { ...state.draft, method } })),
@@ -152,8 +171,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   setName: (name) => set((state) => ({ draft: { ...state.draft, name } })),
   setBodyMode: (bodyMode) => set((state) => ({ draft: { ...state.draft, bodyMode } })),
   setBody: (body) => set((state) => ({ draft: { ...state.draft, body } })),
-  setAuthType: (type) => set((state) => ({ draft: { ...state.draft, auth: { ...state.draft.auth, type } } })),
-  updateAuth: (patch) => set((state) => ({ draft: { ...state.draft, auth: { ...state.draft.auth, ...patch } } })),
+  setAuthType: (type) => set((state) => ({ draft: { ...state.draft, auth: { ...state.draft.auth, type, hasStoredSecret: type === state.draft.auth.type && state.draft.auth.hasStoredSecret } } })),
+  updateAuth: (patch) => set((state) => ({
+    draft: {
+      ...state.draft,
+      auth: {
+        ...state.draft.auth,
+        ...patch,
+        hasStoredSecret: ("bearerToken" in patch || "password" in patch) ? false : state.draft.auth.hasStoredSecret,
+      },
+    },
+  })),
   setTimeoutMs: (timeoutMs) => set((state) => ({ draft: { ...state.draft, timeoutMs } })),
   setRequestTab: (requestTab) => set({ requestTab }),
   setResponseTab: (responseTab) => set({ responseTab }),
@@ -206,6 +234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ workspaceLoading: false });
     }
     await get().loadHistory();
+    await get().loadEnvironments();
   },
   setCollectionSearch: (collectionSearch) => set({ collectionSearch }),
   toggleNode: (id) => set((state) => ({ expandedNodes: { ...state.expandedNodes, [id]: !state.expandedNodes[id] } })),
@@ -293,7 +322,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!result.ok) return;
     const saved = result.value;
     set((state) => ({
-      draft: { ...state.draft, savedRequestId: saved.id, collectionId: saved.collectionId, folderId: saved.folderId },
+      draft: {
+        ...state.draft,
+        savedRequestId: saved.id,
+        collectionId: saved.collectionId,
+        folderId: saved.folderId,
+        auth: saved.hasAuthSecret
+          ? { ...state.draft.auth, bearerToken: "", password: "", hasStoredSecret: true }
+          : { ...state.draft.auth, hasStoredSecret: false },
+      },
       saveDialogOpen: false,
       expandedNodes: { ...state.expandedNodes, [saved.collectionId]: true },
     }));
@@ -378,5 +415,47 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!cleared.ok) return;
     set({ history: [] });
     toast.success(cleared.value === 1 ? "1 history entry cleared" : `${cleared.value} history entries cleared`);
+  },
+  loadEnvironments: async () => {
+    const [loaded, status] = await Promise.all([
+      attempt(() => environmentClient.loadEnvironmentState()),
+      attempt(() => environmentClient.secretStoreStatus()),
+    ]);
+    if (loaded.ok) set({ environments: loaded.value.environments, environmentVariables: loaded.value.variables, activeEnvironmentId: loaded.value.activeEnvironmentId });
+    if (status.ok) set({ secretStoreStatus: status.value });
+  },
+  createEnvironment: async (name) => {
+    const result = await attempt(() => environmentClient.createEnvironment(name));
+    if (result.ok) await get().loadEnvironments();
+  },
+  renameEnvironment: async (id, name) => {
+    const result = await attempt(() => environmentClient.renameEnvironment(id, name));
+    if (result.ok) await get().loadEnvironments();
+  },
+  deleteEnvironment: async (id) => {
+    const result = await attempt(() => environmentClient.deleteEnvironment(id));
+    if (result.ok) await get().loadEnvironments();
+  },
+  setActiveEnvironment: async (id) => {
+    const result = await attempt(() => environmentClient.setActiveEnvironment(id));
+    if (result.ok) set({ activeEnvironmentId: id });
+  },
+  saveEnvironmentVariable: async (variable) => {
+    const result = await attempt(() => environmentClient.saveEnvironmentVariable(variable));
+    if (result.ok) await get().loadEnvironments();
+  },
+  deleteEnvironmentVariable: async (id) => {
+    const result = await attempt(() => environmentClient.deleteEnvironmentVariable(id));
+    if (result.ok) await get().loadEnvironments();
+  },
+  unlockSecretStore: async (password) => {
+    const result = await attempt(() => environmentClient.unlockSecretStore(password));
+    if (!result.ok) return false;
+    set({ secretStoreStatus: result.value });
+    return true;
+  },
+  lockSecretStore: async () => {
+    const result = await attempt(() => environmentClient.lockSecretStore());
+    if (result.ok) set({ secretStoreStatus: result.value });
   },
 }));

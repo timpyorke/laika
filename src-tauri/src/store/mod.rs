@@ -7,6 +7,7 @@
 
 mod collections;
 pub mod commands;
+mod environments;
 mod history;
 pub mod models;
 mod requests;
@@ -127,6 +128,6 @@ impl StoreHandle {
     }
 
     pub fn get(&self) -> Result<&Store, ApplicationError> {
-        self.inner.as_ref().map_err(|error| *error)
+        self.inner.as_ref().map_err(Clone::clone)
     }
 }

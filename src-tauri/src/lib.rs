@@ -1,8 +1,11 @@
 mod error;
 mod http;
+mod secrets;
 mod store;
+mod variables;
 
 use http::HttpEngine;
+use secrets::SecretStore;
 use store::{commands, Store, StoreHandle};
 use tauri::Manager;
 
@@ -14,7 +17,14 @@ pub fn run() {
         .manage(http_engine)
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let directory = app.path().app_data_dir().ok();
             app.manage(open_store(app.handle()));
+            app.manage(
+                directory
+                    .as_deref()
+                    .map(SecretStore::new)
+                    .unwrap_or_else(SecretStore::unavailable),
+            );
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -38,6 +48,17 @@ pub fn run() {
             commands::get_history_entry,
             commands::delete_history_entry,
             commands::clear_history,
+            commands::load_environment_state,
+            commands::create_environment,
+            commands::rename_environment,
+            commands::delete_environment,
+            commands::set_active_environment,
+            commands::save_environment_variable,
+            commands::delete_environment_variable,
+            commands::reveal_environment_variable,
+            commands::secret_store_status,
+            commands::unlock_secret_store,
+            commands::lock_secret_store,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

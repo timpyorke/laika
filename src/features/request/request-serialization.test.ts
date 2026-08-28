@@ -22,7 +22,7 @@ const draft = (): RequestDraft => ({
   body: "{\"name\":\"Laika\"}",
   bodyMode: "json",
   form: [{ id: "f1", enabled: true, key: "name", value: "Laika" }],
-  auth: { type: "bearer", bearerToken: "token", username: "", password: "" },
+  auth: { type: "bearer", bearerToken: "token", username: "", password: "", hasStoredSecret: false },
   timeoutMs: 12_000,
 });
 
@@ -46,7 +46,7 @@ describe("serializeRequest", () => {
   it("serializes form rows and basic authentication", () => {
     const value = draft();
     value.bodyMode = "form";
-    value.auth = { type: "basic", bearerToken: "", username: "user", password: "pass" };
+    value.auth = { type: "basic", bearerToken: "", username: "user", password: "pass", hasStoredSecret: false };
     const request = serializeRequest(value, "request-2");
     expect(request.body).toEqual({ mode: "form", entries: [{ enabled: true, key: "name", value: "Laika" }] });
     expect(request.auth).toEqual({ type: "basic", username: "user", password: "pass" });
@@ -60,7 +60,7 @@ describe("serializeRequest", () => {
 });
 
 describe("serializeSaveRequest", () => {
-  it("keeps the request shape but strips the bearer token", () => {
+  it("sends the bearer token only to the backend vault command", () => {
     expect(serializeSaveRequest(draft(), "collection-1", null)).toEqual({
       id: null,
       collectionId: "collection-1",
@@ -74,16 +74,17 @@ describe("serializeSaveRequest", () => {
       body: "{\"name\":\"Laika\"}",
       form: [{ enabled: true, key: "name", value: "Laika" }],
       auth: { type: "bearer" },
+      authSecret: "token",
       timeoutMs: 12_000,
     });
   });
 
-  it("keeps the basic username but never the password", () => {
+  it("keeps the basic username and passes the password through the vault field", () => {
     const value = draft();
-    value.auth = { type: "basic", bearerToken: "", username: "user", password: "pass" };
+    value.auth = { type: "basic", bearerToken: "", username: "user", password: "pass", hasStoredSecret: false };
     const input = serializeSaveRequest(value, "collection-1", "folder-1");
     expect(input.auth).toEqual({ type: "basic", username: "user" });
-    expect(JSON.stringify(input)).not.toContain("pass");
+    expect(input.authSecret).toBe("pass");
   });
 
   it("targets an existing row when the draft is already saved", () => {
@@ -106,6 +107,7 @@ const savedRequest = (): SavedRequest => ({
   body: "",
   form: [],
   auth: { type: "basic", username: "user" },
+  hasAuthSecret: true,
   timeoutMs: 20_000,
 });
 
@@ -116,7 +118,7 @@ describe("draftFromSavedRequest", () => {
     expect(restored.collectionId).toBe("collection-1");
     expect(restored.folderId).toBe("folder-1");
     expect(restored.params[0]).toMatchObject({ enabled: true, key: "page", value: "2" });
-    expect(restored.auth).toEqual({ type: "basic", bearerToken: "", username: "user", password: "" });
+    expect(restored.auth).toEqual({ type: "basic", bearerToken: "", username: "user", password: "", hasStoredSecret: true });
   });
 
   it("keeps one blank row so empty editors stay usable", () => {

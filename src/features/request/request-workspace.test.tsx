@@ -32,7 +32,7 @@ describe("RequestWorkspace request flow", () => {
         url: "",
         body: "",
         bodyMode: "none",
-        auth: { type: "none", bearerToken: "", username: "", password: "" },
+        auth: { type: "none", bearerToken: "", username: "", password: "", hasStoredSecret: false },
       },
       requestTab: "params",
       response: null,

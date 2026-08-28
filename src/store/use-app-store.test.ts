@@ -55,7 +55,8 @@ const savedRequest = (): SavedRequest => ({
   bodyMode: "none",
   body: "",
   form: [],
-  auth: { type: "none" },
+      auth: { type: "none" },
+      hasAuthSecret: false,
   timeoutMs: 30_000,
 });
 

@@ -65,6 +65,7 @@ export function ResponsePanel() {
           <AlertTriangle className="text-[var(--danger)]" size={28} strokeWidth={1.7} />
           <p className="mt-3 text-sm font-semibold">{error.title}</p>
           <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--muted)]">{error.message}</p>
+          {error.details?.variables ? <p className="mt-2 max-w-sm break-words rounded bg-[var(--surface-muted)] px-3 py-2 font-mono text-xs">{error.details.variables}</p> : null}
           {error.code !== "CANCELLED" ? (
             <Button className="mt-4" variant="secondary" size="sm" onClick={() => void sendRequest()}>
               <RotateCw size={14} /> Retry

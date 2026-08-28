@@ -29,7 +29,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 1 | Application Foundation | The UI shell, state, and frontend structure are ready for feature development | Complete |
 | 2 | REST Request MVP | Users can compose and send requests, then inspect responses | Complete |
 | 3 | Local Workspace | Collections and history are stored in SQLite | Complete |
-| 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Planned |
+| 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Complete |
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Planned |
 | 6 | API Testing | Users can create assertions and run test cases | Planned |
 | 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | Planned |
@@ -191,24 +191,44 @@ Goal: Allow users to switch configuration between environments and store credent
 
 ### Checklist
 
-- [ ] Create an environment and variable manager.
-- [ ] Support an active environment and global/workspace variables.
-- [ ] Use variable syntax such as `{{baseUrl}}`.
-- [ ] Resolve variables in URLs, parameters, headers, bodies, and authentication before sending.
-- [ ] Show unresolved variables before request execution.
-- [ ] Separate regular values from secret values.
-- [ ] Add Stronghold for tokens, passwords, and API keys.
-- [ ] Store opaque secret references in SQLite.
-- [ ] Mask secrets in the UI, with explicit reveal/copy actions.
-- [ ] Redact secrets from logs, history, errors, and exported data by default.
+- [x] Create an environment and variable manager.
+- [x] Support an active environment and global/workspace variables.
+- [x] Use variable syntax such as `{{baseUrl}}`.
+- [x] Resolve variables in URLs, parameters, headers, bodies, and authentication before sending.
+- [x] Show unresolved variables before request execution.
+- [x] Separate regular values from secret values.
+- [x] Add Stronghold for tokens, passwords, and API keys.
+- [x] Store opaque secret references in SQLite.
+- [x] Mask secrets in the UI, with explicit reveal/copy actions.
+- [x] Redact secrets from logs, history, errors, and exported data by default.
 
 ### Definition of Done
 
-- [ ] Switching the environment immediately applies the new values to requests.
-- [ ] Undefined variables are never sent silently.
-- [ ] Secrets are never stored as plaintext in SQLite.
-- [ ] Secret references remain usable after restarting the app.
-- [ ] Normal exports contain no secrets unless the user explicitly selects and confirms their inclusion.
+- [x] Switching the environment immediately applies the new values to requests.
+- [x] Undefined variables are never sent silently.
+- [x] Secrets are never stored as plaintext in SQLite.
+- [x] Secret references remain usable after restarting the app.
+- [x] Normal exports contain no secrets unless the user explicitly selects and confirms their inclusion.
+
+### Implementation Notes
+
+- Migration `0002` adds environments, scoped variables, and the active
+  environment reference, with an automated upgrade test from schema version 1.
+- Workspace variables are the fallback; variables in the active environment
+  override matching names immediately. Nested references are supported and
+  cycles or missing names stop execution with an actionable error.
+- Resolution happens in Rust immediately before request validation and sending.
+  The unresolved request snapshot is used for history, so resolved values do
+  not enter SQLite.
+- Stronghold uses a master-password-derived key and stores encrypted data in
+  `app_data_dir()/laika.stronghold`. SQLite stores random UUID references only.
+- Saved Bearer tokens and Basic Auth passwords are hydrated inside Rust. They
+  are not returned to the editor; the UI only reports that a stored value
+  exists. Known auth and secret-variable values are removed from persisted
+  response history if a server echoes them.
+- Public workspace and export-shaped contracts contain masked secret metadata,
+  not secret references or values. The import/export workflow itself remains
+  scheduled for Phase 5.
 
 ## Phase 5: Workflow Polish
 
@@ -306,19 +326,8 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Begin Phase 4 in the following order:
-
-1. Add the environment and variable data model to the existing schema as
-   migration `0002`, including an upgrade test from schema version 1.
-2. Build the environment manager UI and active-environment selector.
-3. Resolve `{{variable}}` references in URLs, parameters, headers, bodies, and
-   authentication, and report unresolved names before sending.
-4. Add Stronghold and store tokens, passwords, and API keys behind opaque
-   references, filling in the `auth_secret_ref` column reserved in schema
-   version 1.
-5. Mask secrets in the UI with explicit reveal and copy actions.
-6. Re-check the redaction rules in `src-tauri/src/store/models.rs` once real
-   secret references exist.
+Begin Phase 5 with request tabs, dirty-state protection, keyboard shortcuts,
+and the Monaco editor before expanding import/export and drag-and-drop flows.
 
 ## Scope Control
 

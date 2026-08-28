@@ -26,7 +26,7 @@ Laika ใช้สำหรับสร้าง ส่ง ตรวจสอบ
 | Phase | Milestone | Outcome | Status |
 | --- | --- | --- | --- |
 | 0 | Project Bootstrap | โปรเจกต์ build และสร้าง Windows installer ได้ | Complete |
-| 1 | Application Foundation | UI shell, state และ frontend structure พร้อมพัฒนา feature | Planned |
+| 1 | Application Foundation | UI shell, state และ frontend structure พร้อมพัฒนา feature | Complete |
 | 2 | REST Request MVP | สร้างและส่ง request พร้อมดู response ได้จริง | Planned |
 | 3 | Local Workspace | บันทึก collections และ history ด้วย SQLite | Planned |
 | 4 | Environments and Secrets | ใช้ variables และ auth secrets อย่างปลอดภัย | Planned |
@@ -67,26 +67,26 @@ Checklist convention:
 
 ### Checklist
 
-- [ ] เพิ่ม Tailwind CSS และ shadcn/ui
-- [ ] เพิ่ม Zustand สำหรับ application state
-- [ ] สร้าง application shell: sidebar, request workspace และ response panel
-- [ ] สร้าง shared UI primitives เช่น tabs, inputs, table rows, resizable panels และ dialogs
-- [ ] แยก frontend ตาม feature เช่น `request`, `response`, `collections`, `history` และ `environments`
-- [ ] กำหนด TypeScript models สำหรับ request draft, HTTP response และ application errors
-- [ ] เพิ่ม theme tokens สำหรับ light/dark mode และ HTTP status colors
-- [ ] วาง error boundary และ notification system
+- [x] เพิ่ม Tailwind CSS และ shadcn/ui
+- [x] เพิ่ม Zustand สำหรับ application state
+- [x] สร้าง application shell: sidebar, request workspace และ response panel
+- [x] สร้าง shared UI primitives เช่น tabs, inputs, table rows, resizable panels และ dialogs
+- [x] แยก frontend ตาม feature เช่น `request`, `response`, `collections`, `history` และ `environments`
+- [x] กำหนด TypeScript models สำหรับ request draft, HTTP response และ application errors
+- [x] เพิ่ม theme tokens สำหรับ light/dark mode และ HTTP status colors
+- [x] วาง error boundary และ notification system
 
 ### Deliverables
 
-- [ ] หน้าหลักเป็น REST client workspace แทนหน้า Tauri ตัวอย่าง
-- [ ] UI รองรับ desktop window ขนาดเล็กและใหญ่โดยไม่เกิด overlap
-- [ ] State ของ request draft เปลี่ยน method, URL และ tabs ได้
+- [x] หน้าหลักเป็น REST client workspace แทนหน้า Tauri ตัวอย่าง
+- [x] UI รองรับ desktop window ขนาดเล็กและใหญ่โดยไม่เกิด overlap
+- [x] State ของ request draft เปลี่ยน method, URL และ tabs ได้
 
 ### Definition of Done
 
-- [ ] ไม่มี sample `greet` workflow เหลือในหน้าหลัก
-- [ ] UI controls ใช้งานด้วย keyboard ได้ใน workflow หลัก
-- [ ] `pnpm build` ผ่านโดยไม่มี TypeScript errors
+- [x] ไม่มี sample `greet` workflow เหลือในหน้าหลัก
+- [x] UI controls ใช้งานด้วย keyboard ได้ใน workflow หลัก
+- [x] `pnpm build` ผ่านโดยไม่มี TypeScript errors
 
 ## Phase 2: REST Request MVP
 

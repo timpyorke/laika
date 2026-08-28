@@ -81,6 +81,7 @@ describe("workspace store", () => {
     }
     collections.loadWorkspaceTree.mockResolvedValue(tree());
     history.listHistory.mockResolvedValue([historyEntry()]);
+    const draft = { ...useAppStore.getState().draft, id: crypto.randomUUID(), savedRequestId: null, collectionId: null, folderId: null, name: "Untitled request" };
     useAppStore.setState({
       collections: [],
       folders: [],
@@ -89,7 +90,9 @@ describe("workspace store", () => {
       historySearch: "",
       workspaceError: null,
       saveDialogOpen: false,
-      draft: { ...useAppStore.getState().draft, savedRequestId: null, collectionId: null, folderId: null, name: "Untitled request" },
+      draft,
+      requestTabs: [{ id: draft.id, draft, dirty: false }],
+      activeRequestTabId: draft.id,
     });
   });
 
@@ -119,6 +122,22 @@ describe("workspace store", () => {
 
     expect(collections.saveRequest).not.toHaveBeenCalled();
     expect(useAppStore.getState().saveDialogOpen).toBe(true);
+  });
+
+  it("keeps edits isolated across request tabs and marks them dirty", () => {
+    const firstId = useAppStore.getState().activeRequestTabId;
+    useAppStore.getState().setUrl("https://first.example");
+    expect(useAppStore.getState().requestTabs[0].dirty).toBe(true);
+
+    useAppStore.getState().newRequest();
+    const secondId = useAppStore.getState().activeRequestTabId;
+    useAppStore.getState().setUrl("https://second.example");
+    useAppStore.getState().activateRequestTab(firstId);
+    expect(useAppStore.getState().draft.url).toBe("https://first.example");
+
+    useAppStore.getState().closeRequestTab(firstId);
+    expect(useAppStore.getState().activeRequestTabId).toBe(secondId);
+    expect(useAppStore.getState().draft.url).toBe("https://second.example");
   });
 
   it("links the draft to the stored row after saving", async () => {

@@ -30,7 +30,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 2 | REST Request MVP | Users can compose and send requests, then inspect responses | Complete |
 | 3 | Local Workspace | Collections and history are stored in SQLite | Complete |
 | 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Complete |
-| 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Planned |
+| 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Complete |
 | 6 | API Testing | Users can create assertions and run test cases | Planned |
 | 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | Planned |
 
@@ -236,25 +236,42 @@ Goal: Make Laika fast and predictable enough for everyday use.
 
 ### Checklist
 
-- [ ] Add Monaco Editor for JSON and raw request/response bodies.
-- [ ] Add syntax highlighting, formatting, validation, and line wrapping.
-- [ ] Add request tabs with dirty state and confirmation before closing.
-- [ ] Add keyboard shortcuts for send, save, new request, and tab navigation.
-- [ ] Make the sidebar and response panel resizable and collapsible.
-- [ ] Add drag-and-drop moving and reordering for sidebar folders and requests.
-- [ ] Add response search and header filtering.
-- [ ] Generate code snippets such as cURL.
-- [ ] Import cURL and export/import Laika collections.
-- [ ] Add duplicate-request and save-as workflows.
-- [ ] Complete empty, loading, and error states.
-- [ ] Review accessibility: focus order, labels, contrast, and reduced motion.
+- [x] Add Monaco Editor for JSON and raw request/response bodies.
+- [x] Add syntax highlighting, formatting, validation, and line wrapping.
+- [x] Add request tabs with dirty state and confirmation before closing.
+- [x] Add keyboard shortcuts for send, save, new request, and tab navigation.
+- [x] Make the sidebar and response panel resizable and collapsible.
+- [x] Add drag-and-drop moving and reordering for sidebar folders and requests.
+- [x] Add response search and header filtering.
+- [x] Generate code snippets such as cURL.
+- [x] Import cURL and export/import Laika collections.
+- [x] Add duplicate-request and save-as workflows.
+- [x] Complete empty, loading, and error states.
+- [x] Review accessibility: focus order, labels, contrast, and reduced motion.
 
 ### Definition of Done
 
-- [ ] The compose, send, inspect, and save workflow can be completed with the keyboard.
-- [ ] Unsaved changes cannot be lost without a warning.
-- [ ] Import/export round trips preserve all non-secret data.
-- [ ] Typical JSON payloads can be opened and searched while the UI remains responsive.
+- [x] The compose, send, inspect, and save workflow can be completed with the keyboard.
+- [x] Unsaved changes cannot be lost without a warning.
+- [x] Import/export round trips preserve all non-secret data.
+- [x] Typical JSON payloads can be opened and searched while the UI remains responsive.
+
+### Implementation Notes
+
+- Monaco is lazy-loaded and uses local editor and JSON workers, so syntax
+  highlighting, diagnostics, formatting, and line wrapping work offline without
+  increasing the initial application bundle.
+- Request drafts are isolated per tab. Dirty tabs show a marker, warn on close
+  and window exit, and support save-as plus keyboard creation, sending, saving,
+  closing, and cycling.
+- Native drag and drop supports moving and ordering requests and folders. The
+  existing destination dialog remains available as the keyboard-accessible path.
+- cURL generation redacts credentials, while cURL import opens an unsaved draft.
+  Collection JSON exports include non-secret request data only and restore folder
+  topology and request order during import.
+- Response bodies support search, response headers support filtering, and both
+  the sidebar and response panes can be resized or collapsed. The layout switches
+  to stacked request/response panes for narrower desktop windows.
 
 ## Phase 6: API Testing
 
@@ -326,8 +343,8 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Begin Phase 5 with request tabs, dirty-state protection, keyboard shortcuts,
-and the Monaco editor before expanding import/export and drag-and-drop flows.
+Begin Phase 6 by defining the assertion contract and result model before adding
+the collection runner and persisted run summaries.
 
 ## Scope Control
 

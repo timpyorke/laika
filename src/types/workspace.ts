@@ -1,4 +1,5 @@
 import type { ApplicationErrorCode, BodyMode, HttpMethod } from "./http";
+import type { RequestAssertion } from "./testing";
 
 /** Mirrors `store::models::KeyValueRecord`. Unlike the editor's `KeyValueEntry` it has no row id. */
 export interface KeyValueRecord { enabled: boolean; key: string; value: string; }
@@ -63,6 +64,7 @@ export interface SavedRequest {
   auth: AuthRecord;
   hasAuthSecret: boolean;
   timeoutMs: number;
+  assertions: RequestAssertion[];
 }
 
 export interface SaveRequestInput {
@@ -81,6 +83,7 @@ export interface SaveRequestInput {
   auth: AuthRecord;
   authSecret: string | null;
   timeoutMs: number;
+  assertions: RequestAssertion[];
 }
 
 export interface HistorySummary {

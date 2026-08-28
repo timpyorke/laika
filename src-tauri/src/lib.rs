@@ -2,6 +2,7 @@ mod error;
 mod http;
 mod secrets;
 mod store;
+mod testing;
 mod variables;
 
 use http::HttpEngine;
@@ -59,6 +60,9 @@ pub fn run() {
             commands::secret_store_status,
             commands::unlock_secret_store,
             commands::lock_secret_store,
+            commands::run_collection,
+            commands::list_test_runs,
+            commands::get_test_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

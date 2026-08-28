@@ -58,6 +58,7 @@ const savedRequest = (): SavedRequest => ({
       auth: { type: "none" },
       hasAuthSecret: false,
   timeoutMs: 30_000,
+  assertions: [],
 });
 
 const historyEntry = (): HistorySummary => ({

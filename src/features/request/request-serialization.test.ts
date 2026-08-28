@@ -24,6 +24,7 @@ const draft = (): RequestDraft => ({
   form: [{ id: "f1", enabled: true, key: "name", value: "Laika" }],
   auth: { type: "bearer", bearerToken: "token", username: "", password: "", hasStoredSecret: false },
   timeoutMs: 12_000,
+  assertions: [],
 });
 
 describe("serializeRequest", () => {
@@ -76,6 +77,7 @@ describe("serializeSaveRequest", () => {
       auth: { type: "bearer" },
       authSecret: "token",
       timeoutMs: 12_000,
+      assertions: [],
     });
   });
 
@@ -109,6 +111,7 @@ const savedRequest = (): SavedRequest => ({
   auth: { type: "basic", username: "user" },
   hasAuthSecret: true,
   timeoutMs: 20_000,
+  assertions: [],
 });
 
 describe("draftFromSavedRequest", () => {

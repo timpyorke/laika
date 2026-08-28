@@ -5,7 +5,7 @@ export const AUTH_TYPES = ["none", "bearer", "basic"] as const;
 export type HttpMethod = (typeof HTTP_METHODS)[number];
 export type BodyMode = (typeof BODY_MODES)[number];
 export type AuthType = (typeof AUTH_TYPES)[number];
-export type RequestEditorTab = "params" | "headers" | "body" | "auth";
+export type RequestEditorTab = "params" | "headers" | "body" | "auth" | "tests";
 export type ResponseViewerTab = "body" | "headers";
 export type ResponseBodyView = "pretty" | "raw";
 
@@ -35,6 +35,7 @@ export interface RequestDraft {
   form: KeyValueEntry[];
   auth: RequestAuthDraft;
   timeoutMs: number;
+  assertions: import("./testing").RequestAssertion[];
 }
 
 export interface KeyValuePayload { enabled: boolean; key: string; value: string; }

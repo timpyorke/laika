@@ -11,6 +11,7 @@ mod environments;
 mod history;
 pub mod models;
 mod requests;
+mod test_runs;
 #[cfg(test)]
 mod tests;
 

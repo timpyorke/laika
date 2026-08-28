@@ -18,6 +18,14 @@ impl Store {
         input: SaveRequestInput,
     ) -> Result<SavedRequest, ApplicationError> {
         let name = validate_name(&input.name)?;
+        if input.assertions.len() > 100
+            || input.assertions.iter().any(|assertion| {
+                assertion.target.chars().count() > 4_096
+                    || assertion.expected.chars().count() > 4_096
+            })
+        {
+            return Err(ApplicationError::invalid_input());
+        }
         self.assert_collection_exists(&input.collection_id).await?;
         if let Some(folder_id) = input.folder_id.as_deref() {
             self.assert_folder_in_collection(folder_id, &input.collection_id)
@@ -27,6 +35,7 @@ impl Store {
         let params_json = encode_json(&redact_entries(&input.params))?;
         let headers_json = encode_json(&redact_entries(&input.headers))?;
         let form_json = encode_json(&redact_entries(&input.form))?;
+        let assertions_json = encode_json(&input.assertions)?;
         let (body, _) = truncate_body(&input.body);
         let timestamp = now_ms();
 
@@ -35,7 +44,7 @@ impl Store {
                 "UPDATE saved_request SET
                      collection_id = ?, folder_id = ?, name = ?, method = ?, url = ?,
                      params_json = ?, headers_json = ?, body_mode = ?, body = ?, form_json = ?,
-                     auth_type = ?, auth_username = ?, auth_secret_ref = ?, timeout_ms = ?, updated_at = ?
+                     auth_type = ?, auth_username = ?, auth_secret_ref = ?, timeout_ms = ?, assertions_json = ?, updated_at = ?
                  WHERE id = ?
                  RETURNING *",
             )
@@ -53,6 +62,7 @@ impl Store {
             .bind(input.auth.username())
             .bind(&input.auth_secret_ref)
             .bind(input.timeout_ms)
+            .bind(&assertions_json)
             .bind(timestamp)
             .bind(&id)
             .fetch_optional(&self.pool)
@@ -67,10 +77,10 @@ impl Store {
                     "INSERT INTO saved_request (
                          id, collection_id, folder_id, name, method, url,
                          params_json, headers_json, body_mode, body, form_json,
-                         auth_type, auth_username, auth_secret_ref, timeout_ms,
+                         auth_type, auth_username, auth_secret_ref, timeout_ms, assertions_json,
                          position, created_at, updated_at
                      )
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                      RETURNING *",
                 )
                 .bind(new_id())
@@ -88,6 +98,7 @@ impl Store {
                 .bind(input.auth.username())
                 .bind(&input.auth_secret_ref)
                 .bind(input.timeout_ms)
+                .bind(&assertions_json)
                 .bind(position)
                 .bind(timestamp)
                 .bind(timestamp)
@@ -147,12 +158,12 @@ impl Store {
             "INSERT INTO saved_request (
                  id, collection_id, folder_id, name, method, url,
                  params_json, headers_json, body_mode, body, form_json,
-                 auth_type, auth_username, auth_secret_ref, timeout_ms,
+                 auth_type, auth_username, auth_secret_ref, timeout_ms, assertions_json,
                  position, created_at, updated_at
              )
              SELECT ?, collection_id, folder_id, ?, method, url,
                     params_json, headers_json, body_mode, body, form_json,
-                    auth_type, auth_username, auth_secret_ref, timeout_ms,
+                    auth_type, auth_username, auth_secret_ref, timeout_ms, assertions_json,
                     ?, ?, ?
              FROM saved_request WHERE id = ?
              RETURNING *",

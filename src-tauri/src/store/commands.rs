@@ -16,7 +16,12 @@ use crate::http::{
     HttpEngine, HttpRequestInput, HttpResponseOutput, KeyValueEntry, RequestAuth, RequestBody,
 };
 use crate::secrets::{SecretStore, SecretStoreStatus};
-use crate::variables::resolve_request;
+use crate::testing::{
+    evaluate_assertions, AssertionResult, RunCollectionInput, TestCaseResult, TestRun,
+    TestRunSummary,
+};
+use crate::variables::{resolve_assertions, resolve_request};
+use std::time::Instant;
 use tauri::State;
 use zeroize::Zeroize;
 
@@ -425,6 +430,264 @@ pub fn lock_secret_store(
     secrets: State<'_, SecretStore>,
 ) -> Result<SecretStoreStatus, ApplicationError> {
     secrets.lock()
+}
+
+#[tauri::command]
+pub async fn run_collection(
+    engine: State<'_, HttpEngine>,
+    store: State<'_, StoreHandle>,
+    secrets: State<'_, SecretStore>,
+    input: RunCollectionInput,
+) -> Result<TestRun, ApplicationError> {
+    let repository = store.get()?;
+    run_collection_core(engine.inner(), repository, secrets.inner(), input).await
+}
+
+pub(crate) async fn run_collection_core(
+    engine: &HttpEngine,
+    repository: &super::Store,
+    secrets: &SecretStore,
+    input: RunCollectionInput,
+) -> Result<TestRun, ApplicationError> {
+    let collection_name = repository.collection_name(&input.collection_id).await?;
+    let environment_name = repository
+        .environment_name(input.environment_id.as_deref())
+        .await?;
+    let variables = repository
+        .effective_variables_for_environment(input.environment_id.as_deref())
+        .await?;
+    let requests = repository.collection_requests(&input.collection_id).await?;
+    if requests.is_empty() {
+        return Err(ApplicationError::invalid_input());
+    }
+    let started = Instant::now();
+    let mut results = Vec::with_capacity(requests.len());
+
+    for (position, saved) in requests.into_iter().enumerate() {
+        let request_name = saved.name.clone();
+        let request_url = saved.url.clone();
+        let method = saved.method.clone();
+        let request_id = saved.id.clone();
+        let mut request = request_input_from_saved(&saved);
+        let history_draft = HistoryDraft {
+            request_id: Some(request_id.clone()),
+            name: request_name.clone(),
+            snapshot: snapshot_of(&request),
+        };
+        let mut assertions = saved.assertions.clone();
+        let prepared = async {
+            let mut redactions = Vec::new();
+            if let Some(secret) =
+                hydrate_saved_auth(Some(repository), secrets, &mut request).await?
+            {
+                redactions.push(secret);
+            }
+            redactions.extend(resolve_request(&mut request, &variables, secrets)?);
+            redactions.extend(resolve_assertions(&mut assertions, &variables, secrets)?);
+            Ok::<_, ApplicationError>(redactions)
+        }
+        .await;
+
+        let result = match prepared {
+            Ok(redactions) => match engine.execute(request).await {
+                Ok(response) => {
+                    let mut assertion_results = evaluate_assertions(&assertions, &response);
+                    redact_assertion_results(&mut assertion_results, &redactions);
+                    let passed = assertion_results.iter().all(|assertion| assertion.passed);
+                    let _ = repository
+                        .record_execution(
+                            history_draft,
+                            Ok(history_response(&response, &redactions)),
+                        )
+                        .await;
+                    TestCaseResult {
+                        id: super::models::new_id(),
+                        request_id: Some(request_id),
+                        request_name,
+                        method,
+                        url: request_url,
+                        status: if passed { "passed" } else { "failed" }.to_owned(),
+                        response_status: Some(response.status),
+                        elapsed_ms: Some(response.elapsed_ms),
+                        error_code: None,
+                        assertion_results,
+                        position: position as i64,
+                    }
+                }
+                Err(error) => {
+                    if !error.code.is_pre_flight() {
+                        let _ = repository
+                            .record_execution(history_draft, Err(error.code.as_str()))
+                            .await;
+                    }
+                    failed_case(
+                        position,
+                        request_id,
+                        request_name,
+                        method,
+                        request_url,
+                        error,
+                    )
+                }
+            },
+            Err(error) => failed_case(
+                position,
+                request_id,
+                request_name,
+                method,
+                request_url,
+                error,
+            ),
+        };
+        results.push(result);
+    }
+
+    let passed_requests = results
+        .iter()
+        .filter(|result| result.status == "passed")
+        .count() as i64;
+    let total_requests = results.len() as i64;
+    let failed_requests = total_requests - passed_requests;
+    let run = TestRun {
+        summary: TestRunSummary {
+            id: super::models::new_id(),
+            collection_id: Some(input.collection_id),
+            collection_name,
+            environment_id: input.environment_id,
+            environment_name,
+            status: if failed_requests == 0 {
+                "passed"
+            } else {
+                "failed"
+            }
+            .to_owned(),
+            total_requests,
+            passed_requests,
+            failed_requests,
+            duration_ms: started.elapsed().as_millis().min(i64::MAX as u128) as i64,
+            created_at: super::models::now_ms(),
+        },
+        results,
+    };
+    repository.save_test_run(&run).await?;
+    Ok(run)
+}
+
+#[tauri::command]
+pub async fn list_test_runs(
+    store: State<'_, StoreHandle>,
+    limit: i64,
+) -> Result<Vec<TestRunSummary>, ApplicationError> {
+    store.get()?.list_test_runs(limit).await
+}
+
+#[tauri::command]
+pub async fn get_test_run(
+    store: State<'_, StoreHandle>,
+    id: String,
+) -> Result<TestRun, ApplicationError> {
+    store.get()?.get_test_run(&id).await
+}
+
+fn failed_case(
+    position: usize,
+    request_id: String,
+    request_name: String,
+    method: String,
+    url: String,
+    error: ApplicationError,
+) -> TestCaseResult {
+    TestCaseResult {
+        id: super::models::new_id(),
+        request_id: Some(request_id),
+        request_name,
+        method,
+        url,
+        status: "error".to_owned(),
+        response_status: None,
+        elapsed_ms: None,
+        error_code: Some(error.code.as_str().to_owned()),
+        assertion_results: Vec::new(),
+        position: position as i64,
+    }
+}
+
+fn redact_assertion_results(results: &mut [AssertionResult], redactions: &[String]) {
+    for result in results {
+        result.target = bounded_text(&redact_text(&result.target, redactions));
+        result.expected = bounded_text(&redact_text(&result.expected, redactions));
+        if let Some(actual) = result.actual.as_mut() {
+            *actual = bounded_text(&redact_text(actual, redactions));
+        }
+        result.message = bounded_text(&redact_text(&result.message, redactions));
+    }
+}
+
+fn bounded_text(value: &str) -> String {
+    const LIMIT: usize = 2_048;
+    if value.len() <= LIMIT {
+        return value.to_owned();
+    }
+    let mut end = LIMIT;
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", &value[..end])
+}
+
+fn request_input_from_saved(saved: &SavedRequest) -> HttpRequestInput {
+    let method = match saved.method.as_str() {
+        "POST" => crate::http::HttpMethod::Post,
+        "PUT" => crate::http::HttpMethod::Put,
+        "PATCH" => crate::http::HttpMethod::Patch,
+        "DELETE" => crate::http::HttpMethod::Delete,
+        "HEAD" => crate::http::HttpMethod::Head,
+        "OPTIONS" => crate::http::HttpMethod::Options,
+        _ => crate::http::HttpMethod::Get,
+    };
+    let body = match saved.body_mode.as_str() {
+        "json" => RequestBody::Json {
+            content: saved.body.clone(),
+        },
+        "text" => RequestBody::Text {
+            content: saved.body.clone(),
+        },
+        "form" => RequestBody::Form {
+            entries: saved.form.iter().map(record_to_entry).collect(),
+        },
+        _ => RequestBody::None,
+    };
+    let auth = match &saved.auth {
+        super::models::AuthRecord::Bearer => RequestAuth::Bearer {
+            token: String::new(),
+        },
+        super::models::AuthRecord::Basic { username } => RequestAuth::Basic {
+            username: username.clone(),
+            password: String::new(),
+        },
+        super::models::AuthRecord::None => RequestAuth::None,
+    };
+    HttpRequestInput {
+        request_id: super::models::new_id(),
+        saved_request_id: Some(saved.id.clone()),
+        name: Some(saved.name.clone()),
+        method,
+        url: saved.url.clone(),
+        params: saved.params.iter().map(record_to_entry).collect(),
+        headers: saved.headers.iter().map(record_to_entry).collect(),
+        body,
+        auth,
+        timeout_ms: saved.timeout_ms.max(0) as u64,
+        max_response_bytes: 10 * 1024 * 1024,
+    }
+}
+
+fn record_to_entry(record: &KeyValueRecord) -> KeyValueEntry {
+    KeyValueEntry {
+        enabled: record.enabled,
+        key: record.key.clone(),
+        value: record.value.clone(),
+    }
 }
 
 /// Builds the persistable view of an outgoing request. Bearer tokens and basic

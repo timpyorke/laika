@@ -5,6 +5,14 @@ use super::models::{
 };
 use super::Store;
 use crate::error::ApplicationErrorCode;
+use crate::http::HttpEngine;
+use crate::secrets::SecretStore;
+use crate::testing::{
+    AssertionKind, AssertionOperator, AssertionResult, RequestAssertion, RunCollectionInput,
+    TestCaseResult, TestRun, TestRunSummary,
+};
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn entry(key: &str, value: &str) -> KeyValueRecord {
     KeyValueRecord {
@@ -30,6 +38,7 @@ fn save_input(collection_id: &str, name: &str) -> SaveRequestInput {
         auth: AuthRecord::None,
         auth_secret_ref: None,
         timeout_ms: 30_000,
+        assertions: Vec::new(),
     }
 }
 
@@ -208,6 +217,117 @@ async fn saves_and_reopens_a_request() {
     assert_eq!(tree.folders.len(), 1);
     assert_eq!(tree.requests.len(), 1);
     assert_eq!(tree.requests[0].method, "GET");
+}
+
+#[tokio::test]
+async fn saves_request_assertions_and_persisted_run_results() {
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let mut input = save_input(&collection.id, "Health");
+    input.assertions = vec![RequestAssertion {
+        id: "assertion-1".to_owned(),
+        kind: AssertionKind::Status,
+        operator: AssertionOperator::Equals,
+        target: String::new(),
+        expected: "200".to_owned(),
+    }];
+    let request = store.save_request(input).await.unwrap();
+    assert_eq!(request.assertions.len(), 1);
+
+    let run = TestRun {
+        summary: TestRunSummary {
+            id: "run-1".to_owned(),
+            collection_id: Some(collection.id.clone()),
+            collection_name: collection.name,
+            environment_id: None,
+            environment_name: None,
+            status: "passed".to_owned(),
+            total_requests: 1,
+            passed_requests: 1,
+            failed_requests: 0,
+            duration_ms: 12,
+            created_at: super::models::now_ms(),
+        },
+        results: vec![TestCaseResult {
+            id: "case-1".to_owned(),
+            request_id: Some(request.id),
+            request_name: "Health".to_owned(),
+            method: "GET".to_owned(),
+            url: "https://example.com/users".to_owned(),
+            status: "passed".to_owned(),
+            response_status: Some(200),
+            elapsed_ms: Some(12),
+            error_code: None,
+            assertion_results: vec![AssertionResult {
+                assertion_id: "assertion-1".to_owned(),
+                kind: AssertionKind::Status,
+                operator: AssertionOperator::Equals,
+                target: String::new(),
+                expected: "200".to_owned(),
+                actual: Some("200".to_owned()),
+                passed: true,
+                message: "status matched".to_owned(),
+            }],
+            position: 0,
+        }],
+    };
+    store.save_test_run(&run).await.unwrap();
+    assert_eq!(store.list_test_runs(20).await.unwrap().len(), 1);
+    let reopened = store.get_test_run("run-1").await.unwrap();
+    assert_eq!(
+        reopened.results[0].assertion_results[0].actual.as_deref(),
+        Some("200")
+    );
+}
+
+#[tokio::test]
+async fn collection_runner_uses_the_selected_environment_and_persists_results() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/health"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .mount(&server)
+        .await;
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let environment = store.create_environment("Test").await.unwrap();
+    store
+        .save_variable(PersistVariableInput {
+            id: None,
+            environment_id: Some(environment.id.clone()),
+            name: "baseUrl".to_owned(),
+            value: server.uri(),
+            is_secret: false,
+            secret_ref: None,
+        })
+        .await
+        .unwrap();
+    let mut input = save_input(&collection.id, "Health");
+    input.url = "{{baseUrl}}/health".to_owned();
+    input.assertions = vec![RequestAssertion {
+        id: "status".to_owned(),
+        kind: AssertionKind::Status,
+        operator: AssertionOperator::Equals,
+        target: String::new(),
+        expected: "200".to_owned(),
+    }];
+    store.save_request(input).await.unwrap();
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    let run = super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &SecretStore::new(&temporary),
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: Some(environment.id),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(run.summary.status, "passed");
+    assert_eq!(run.results[0].response_status, Some(200));
+    assert!(run.results[0].assertion_results[0].passed);
+    assert_eq!(store.list_test_runs(20).await.unwrap().len(), 1);
 }
 
 #[tokio::test]

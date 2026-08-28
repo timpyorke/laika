@@ -215,10 +215,31 @@ impl Store {
                 .fetch_one(&self.pool)
                 .await
                 .map_err(map_sqlx_error)?;
+        self.effective_variables_for_environment(active.as_deref())
+            .await
+    }
+
+    pub async fn effective_variables_for_environment(
+        &self,
+        environment_id: Option<&str>,
+    ) -> Result<BTreeMap<String, StoredVariable>, ApplicationError> {
+        if let Some(environment_id) = environment_id {
+            let exists: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM environment WHERE id = ? AND workspace_id = ?)",
+            )
+            .bind(environment_id)
+            .bind(&self.workspace_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(map_sqlx_error)?;
+            if !exists {
+                return Err(ApplicationError::not_found());
+            }
+        }
         let rows = sqlx::query(
             "SELECT name, value, is_secret, secret_ref, environment_id FROM environment_variable WHERE workspace_id = ? AND (environment_id IS NULL OR environment_id = ?) ORDER BY CASE WHEN environment_id IS NULL THEN 0 ELSE 1 END",
         )
-        .bind(&self.workspace_id).bind(active).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
+        .bind(&self.workspace_id).bind(environment_id).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
         let mut variables = BTreeMap::new();
         for row in rows {
             let name: String = row.get("name");

@@ -10,6 +10,7 @@ import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import { AUTH_TYPES, BODY_MODES, HTTP_METHODS, type AuthType, type BodyMode, type HttpMethod, type RequestEditorTab } from "../../types/http";
 import { CurlDialog } from "./curl-dialog";
+import { AssertionEditor } from "../testing";
 
 const bodyLabels: Record<BodyMode, string> = { none: "None", json: "JSON", text: "Text", form: "Form" };
 const authLabels: Record<AuthType, string> = { none: "No authentication", bearer: "Bearer token", basic: "Basic auth" };
@@ -100,6 +101,7 @@ export function RequestWorkspace() {
           <TabsTrigger value="headers">Headers</TabsTrigger>
           <TabsTrigger value="body">Body</TabsTrigger>
           <TabsTrigger value="auth">Auth</TabsTrigger>
+          <TabsTrigger value="tests">Tests</TabsTrigger>
         </TabsList>
         <TabsContent value="params" className="overflow-auto panel-scroll">
           <KeyValueTable rows={draft.params} keyPlaceholder="Parameter" onChange={(id, patch) => updateEntry("params", id, patch)} onAdd={() => addEntry("params")} onRemove={(id) => removeEntry("params", id)} />
@@ -173,6 +175,7 @@ export function RequestWorkspace() {
             </label>
           </div>
         </TabsContent>
+        <TabsContent value="tests" className="flex min-h-0 flex-col"><AssertionEditor /></TabsContent>
       </Tabs>
       <CurlDialog open={curlDialog !== null} mode={curlDialog ?? "generate"} onOpenChange={(open) => { if (!open) setCurlDialog(null); }} />
     </section>

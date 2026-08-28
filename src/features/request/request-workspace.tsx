@@ -1,10 +1,12 @@
-import { ChevronDown, Send } from "lucide-react";
-import { toast } from "sonner";
+import { ChevronDown, Send, Square } from "lucide-react";
+import { useEffect, type FormEvent } from "react";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { KeyValueTable } from "../../components/ui/key-value-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
-import { HTTP_METHODS, type HttpMethod, type RequestEditorTab } from "../../types/http";
+import { AUTH_TYPES, BODY_MODES, HTTP_METHODS, type AuthType, type BodyMode, type HttpMethod, type RequestEditorTab } from "../../types/http";
 
 const methodColor: Record<HttpMethod, string> = {
   GET: "text-[#16834b] dark:text-[#4ade80]",
@@ -16,23 +18,42 @@ const methodColor: Record<HttpMethod, string> = {
   OPTIONS: "text-[#657080] dark:text-[#aab3bf]",
 };
 
+const bodyLabels: Record<BodyMode, string> = { none: "None", json: "JSON", text: "Text", form: "Form" };
+const authLabels: Record<AuthType, string> = { none: "No authentication", bearer: "Bearer token", basic: "Basic auth" };
+
 export function RequestWorkspace() {
   const draft = useAppStore((state) => state.draft);
   const requestTab = useAppStore((state) => state.requestTab);
+  const isSending = useAppStore((state) => state.isSending);
   const setMethod = useAppStore((state) => state.setMethod);
   const setUrl = useAppStore((state) => state.setUrl);
+  const setBodyMode = useAppStore((state) => state.setBodyMode);
+  const setBody = useAppStore((state) => state.setBody);
+  const setAuthType = useAppStore((state) => state.setAuthType);
+  const updateAuth = useAppStore((state) => state.updateAuth);
+  const setTimeoutMs = useAppStore((state) => state.setTimeoutMs);
   const setRequestTab = useAppStore((state) => state.setRequestTab);
   const updateEntry = useAppStore((state) => state.updateEntry);
   const addEntry = useAppStore((state) => state.addEntry);
   const removeEntry = useAppStore((state) => state.removeEntry);
+  const sendRequest = useAppStore((state) => state.sendRequest);
+  const cancelRequest = useAppStore((state) => state.cancelRequest);
 
-  const submit = (event: React.FormEvent) => {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (!isSending) void sendRequest();
+      }
+      if (event.key === "Escape" && isSending) void cancelRequest();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cancelRequest, isSending, sendRequest]);
+
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!draft.url.trim()) {
-      toast.error("Enter a request URL");
-      return;
-    }
-    toast.info("Request transport will be connected in the next milestone.");
+    void sendRequest();
   };
 
   return (
@@ -57,7 +78,13 @@ export function RequestWorkspace() {
           aria-label="Request URL"
           spellCheck={false}
         />
-        <Button className="h-10 px-4" type="submit"><Send size={15} /> Send</Button>
+        {isSending ? (
+          <Button className="h-10 px-4" variant="danger" type="button" onClick={() => void cancelRequest()}>
+            <Square size={14} fill="currentColor" /> Cancel
+          </Button>
+        ) : (
+          <Button className="h-10 px-4" type="submit"><Send size={15} /> Send</Button>
+        )}
       </form>
 
       <Tabs className="flex min-h-0 flex-1 flex-col" value={requestTab} onValueChange={(value) => setRequestTab(value as RequestEditorTab)}>
@@ -73,16 +100,71 @@ export function RequestWorkspace() {
         <TabsContent value="headers" className="overflow-auto panel-scroll">
           <KeyValueTable rows={draft.headers} keyPlaceholder="Header" onChange={(id, patch) => updateEntry("headers", id, patch)} onAdd={() => addEntry("headers")} onRemove={(id) => removeEntry("headers", id)} />
         </TabsContent>
-        <TabsContent value="body" className="p-4">
-          <textarea className="h-full min-h-32 w-full resize-none rounded-md border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-sm focus:border-[var(--focus)] focus:outline-none" placeholder="Request body" aria-label="Request body" />
+        <TabsContent value="body" className="flex min-h-0 flex-col overflow-auto p-4 panel-scroll">
+          <div className="flex w-fit rounded-md border border-[var(--border)] bg-[var(--background)] p-0.5" aria-label="Body mode">
+            {BODY_MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={draft.bodyMode === mode}
+                onClick={() => setBodyMode(mode)}
+                className={cn("h-7 cursor-pointer rounded px-3 text-xs font-medium text-[var(--muted)]", draft.bodyMode === mode && "bg-[var(--surface-raised)] text-[var(--foreground)] shadow-sm")}
+              >
+                {bodyLabels[mode]}
+              </button>
+            ))}
+          </div>
+          {draft.bodyMode === "none" ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-[var(--muted)]">This request has no body.</div>
+          ) : draft.bodyMode === "form" ? (
+            <div className="-mx-4 mt-2"><KeyValueTable rows={draft.form} keyPlaceholder="Field" onChange={(id, patch) => updateEntry("form", id, patch)} onAdd={() => addEntry("form")} onRemove={(id) => removeEntry("form", id)} /></div>
+          ) : (
+            <textarea
+              className="mt-3 min-h-40 flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-sm leading-6 focus:border-[var(--focus)] focus:outline-none"
+              value={draft.body}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder={draft.bodyMode === "json" ? "{\n  \"key\": \"value\"\n}" : "Request body"}
+              aria-label="Request body"
+              spellCheck={false}
+            />
+          )}
         </TabsContent>
-        <TabsContent value="auth" className="p-4 text-sm text-[var(--muted)]">
-          <label className="grid max-w-sm gap-2 font-medium text-[var(--foreground)]">
-            Authentication
-            <select className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-normal">
-              <option>No authentication</option><option disabled>Bearer token</option><option disabled>Basic auth</option>
-            </select>
-          </label>
+        <TabsContent value="auth" className="overflow-auto p-4 panel-scroll">
+          <div className="grid max-w-md gap-5">
+            <label className="grid gap-2 text-sm font-medium">
+              Authentication
+              <select
+                value={draft.auth.type}
+                onChange={(event) => setAuthType(event.target.value as AuthType)}
+                className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-normal"
+              >
+                {AUTH_TYPES.map((type) => <option key={type} value={type}>{authLabels[type]}</option>)}
+              </select>
+            </label>
+            {draft.auth.type === "bearer" ? (
+              <label className="grid gap-2 text-sm font-medium">
+                Token
+                <Input type="password" value={draft.auth.bearerToken} onChange={(event) => updateAuth({ bearerToken: event.target.value })} autoComplete="off" />
+              </label>
+            ) : null}
+            {draft.auth.type === "basic" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-2 text-sm font-medium">Username<Input value={draft.auth.username} onChange={(event) => updateAuth({ username: event.target.value })} autoComplete="off" /></label>
+                <label className="grid gap-2 text-sm font-medium">Password<Input type="password" value={draft.auth.password} onChange={(event) => updateAuth({ password: event.target.value })} autoComplete="off" /></label>
+              </div>
+            ) : null}
+            <label className="grid max-w-40 gap-2 border-t border-[var(--border)] pt-4 text-sm font-medium">
+              Timeout (seconds)
+              <Input
+                type="number"
+                min="0.1"
+                max="300"
+                step="0.1"
+                value={draft.timeoutMs / 1000}
+                onChange={(event) => setTimeoutMs(Math.round(Number(event.target.value) * 1000))}
+              />
+            </label>
+          </div>
         </TabsContent>
       </Tabs>
     </section>

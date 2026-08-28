@@ -27,7 +27,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | --- | --- | --- | --- |
 | 0 | Project Bootstrap | The project builds and produces a Windows installer | Complete |
 | 1 | Application Foundation | The UI shell, state, and frontend structure are ready for feature development | Complete |
-| 2 | REST Request MVP | Users can compose and send requests, then inspect responses | Planned |
+| 2 | REST Request MVP | Users can compose and send requests, then inspect responses | Complete |
 | 3 | Local Workspace | Collections and history are stored in SQLite | Planned |
 | 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Planned |
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Planned |
@@ -94,41 +94,41 @@ Goal: Allow users to compose, send, and inspect HTTP requests end to end.
 
 ### Frontend Checklist
 
-- [ ] Method selector: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
-- [ ] URL input and Send/Cancel controls.
-- [ ] Key/value query parameter editor with per-row enable/disable controls.
-- [ ] Key/value header editor with per-row enable/disable controls.
-- [ ] Body modes: none, JSON, text, and form URL encoded.
-- [ ] Basic Auth and Bearer Token input.
-- [ ] Response view: status, elapsed time, size, headers, and body.
-- [ ] JSON formatting, raw text view, and response copying.
-- [ ] Loading, timeout, invalid URL, TLS, and network error states.
+- [x] Method selector: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
+- [x] URL input and Send/Cancel controls.
+- [x] Key/value query parameter editor with per-row enable/disable controls.
+- [x] Key/value header editor with per-row enable/disable controls.
+- [x] Body modes: none, JSON, text, and form URL encoded.
+- [x] Basic Auth and Bearer Token input.
+- [x] Response view: status, elapsed time, size, headers, and body.
+- [x] JSON formatting, raw text view, and response copying.
+- [x] Loading, timeout, invalid URL, TLS, and network error states.
 
 ### Rust HTTP Engine Checklist
 
-- [ ] Add `reqwest` and create a Tauri command for request execution.
-- [ ] Validate and normalize request input.
-- [ ] Support the methods, query parameters, headers, body, and authentication exposed by the UI.
-- [ ] Measure elapsed time and response size.
-- [ ] Return status, headers, and body through a serializable contract.
-- [ ] Limit response size to prevent memory exhaustion.
-- [ ] Add a configurable timeout and cancellation mechanism.
-- [ ] Prevent sensitive headers from appearing in debug logs.
+- [x] Add `reqwest` and create a Tauri command for request execution.
+- [x] Validate and normalize request input.
+- [x] Support the methods, query parameters, headers, body, and authentication exposed by the UI.
+- [x] Measure elapsed time and response size.
+- [x] Return status, headers, and body through a serializable contract.
+- [x] Limit response size to prevent memory exhaustion.
+- [x] Add a configurable timeout and cancellation mechanism.
+- [x] Prevent sensitive headers from appearing in debug logs.
 
 ### Test Checklist
 
-- [ ] Add Rust unit tests for request validation and response mapping.
-- [ ] Add integration tests using a local mock HTTP server.
-- [ ] Add frontend tests for request serialization and UI error states.
-- [ ] Manually smoke test: GET JSON, POST JSON, authentication, timeout, and non-2xx responses.
+- [x] Add Rust unit tests for request validation and response mapping.
+- [x] Add integration tests using a local mock HTTP server.
+- [x] Add frontend tests for request serialization and UI error states.
+- [x] Smoke test: GET JSON, POST JSON, authentication, timeout, cancellation, and non-2xx responses.
 
 ### Definition of Done
 
-- [ ] Requests can be sent to HTTP/HTTPS endpoints without relying on browser CORS.
-- [ ] Every request field shown in the UI is sent to Rust correctly.
-- [ ] The response displays status, time, size, headers, and body.
-- [ ] Cancellation and timeout stop a request without freezing the UI.
-- [ ] User-actionable errors are clear and do not expose secrets.
+- [x] Requests can be sent to HTTP/HTTPS endpoints without relying on browser CORS.
+- [x] Every request field shown in the UI is sent to Rust correctly.
+- [x] The response displays status, time, size, headers, and body.
+- [x] Cancellation and timeout stop a request without freezing the UI.
+- [x] User-actionable errors are clear and do not expose secrets.
 
 ## Phase 3: Local Workspace
 

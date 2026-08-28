@@ -6,7 +6,7 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-Phases 0 through 4 of [docs/plan.md](docs/plan.md) are complete.
+Phases 0 through 5 of [docs/plan.md](docs/plan.md) are complete.
 
 Implemented:
 
@@ -22,11 +22,17 @@ Implemented:
   `{{variable}}` resolution across every request field
 - Stronghold-backed secret vault for variables and saved authentication, with
   masked values and explicit reveal/copy actions
+- Lazy-loaded Monaco editors for JSON and raw bodies, including formatting,
+  validation, syntax highlighting, and line wrapping
+- Multi-request tabs with dirty-state protection, save-as, and keyboard shortcuts
+- Sidebar drag-and-drop ordering plus keyboard-accessible move operations
+- Response body search, header filtering, resizable/collapsible panels, and
+  compact-window layout
+- Credential-redacted cURL generation, cURL import, and secret-free collection
+  import/export
 
 Not implemented yet:
 
-- Drag-and-drop reordering in the sidebar
-- Monaco editor, cURL import/export, and request tabs
 - API testing assertions and a collection runner
 
 ## Tech Stack
@@ -42,12 +48,9 @@ Current:
 - `reqwest` for HTTP execution
 - `sqlx` with SQLite for local collections, history, and workspace data
 - Stronghold for encrypted local secrets
+- Monaco Editor for JSON and raw request/response bodies
 - Zustand for frontend state
 - Tailwind CSS and shadcn/ui for the application UI
-
-Planned:
-
-- Monaco Editor for JSON, raw body, and response editing
 
 ## Project Structure
 
@@ -184,6 +187,9 @@ Typical Windows artifacts:
 - SQLite persistence with versioned migrations
 - Environment variables
 - Secure secret storage
+- Request tabs, keyboard shortcuts, and workflow-focused panel controls
+- cURL and collection import/export
+- Monaco request/response editing and response search
 
 ## Local Data
 
@@ -202,7 +208,6 @@ files resets the workspace and vault.
 ### Later
 
 - API testing assertions
-- Import/export workflows
 - Multiple workspaces
 - CLI companion
 - Request scripting and pre-request hooks

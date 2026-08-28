@@ -327,6 +327,84 @@ async fn moves_a_request_into_another_folder() {
 }
 
 #[tokio::test]
+async fn reorders_requests_within_the_same_parent() {
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("APIs").await.unwrap();
+    let first = store
+        .save_request(save_input(&collection.id, "First"))
+        .await
+        .unwrap();
+    store
+        .save_request(save_input(&collection.id, "Second"))
+        .await
+        .unwrap();
+    let third = store
+        .save_request(save_input(&collection.id, "Third"))
+        .await
+        .unwrap();
+
+    store
+        .move_request(&third.id, &collection.id, None, 0)
+        .await
+        .unwrap();
+    let names: Vec<_> = store
+        .load_tree()
+        .await
+        .unwrap()
+        .requests
+        .into_iter()
+        .map(|request| request.name)
+        .collect();
+    assert_eq!(names, ["Third", "First", "Second"]);
+
+    store
+        .move_request(&first.id, &collection.id, None, 3)
+        .await
+        .unwrap();
+    let names: Vec<_> = store
+        .load_tree()
+        .await
+        .unwrap()
+        .requests
+        .into_iter()
+        .map(|request| request.name)
+        .collect();
+    assert_eq!(names, ["Third", "Second", "First"]);
+}
+
+#[tokio::test]
+async fn reorders_folders_within_the_same_parent() {
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("APIs").await.unwrap();
+    store
+        .create_folder(&collection.id, None, "First")
+        .await
+        .unwrap();
+    store
+        .create_folder(&collection.id, None, "Second")
+        .await
+        .unwrap();
+    let third = store
+        .create_folder(&collection.id, None, "Third")
+        .await
+        .unwrap();
+
+    store
+        .move_folder(&third.id, &collection.id, None, 0)
+        .await
+        .unwrap();
+    let names: Vec<_> = store
+        .load_tree()
+        .await
+        .unwrap()
+        .folders
+        .into_iter()
+        .map(|folder| folder.name)
+        .collect();
+    assert_eq!(names, ["Third", "First", "Second"]);
+}
+
+#[tokio::test]
 async fn rejects_moving_a_folder_into_its_own_subtree() {
     let store = Store::open_in_memory().await.unwrap();
     let collection = store.create_collection("APIs").await.unwrap();

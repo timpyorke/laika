@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../../store/use-app-store";
 import { RequestWorkspace } from "./request-workspace";
+import type { RequestDraft } from "../../types/http";
 
 const requestClient = vi.hoisted(() => ({
   executeHttpRequest: vi.fn(),
@@ -25,15 +26,19 @@ describe("RequestWorkspace request flow", () => {
     requestClient.cancelHttpRequest.mockReset();
 
     const draft = useAppStore.getState().draft;
-    useAppStore.setState({
-      draft: {
+    const nextDraft: RequestDraft = {
         ...draft,
+        id: crypto.randomUUID(),
         method: "GET",
         url: "",
         body: "",
         bodyMode: "none",
         auth: { type: "none", bearerToken: "", username: "", password: "", hasStoredSecret: false },
-      },
+      };
+    useAppStore.setState({
+      draft: nextDraft,
+      requestTabs: [{ id: nextDraft.id, draft: nextDraft, dirty: false }],
+      activeRequestTabId: nextDraft.id,
       requestTab: "params",
       response: null,
       requestError: null,

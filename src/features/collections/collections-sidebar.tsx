@@ -1,5 +1,6 @@
-import { ArrowRightLeft, ChevronDown, ChevronRight, Copy, FilePlus2, Folder, FolderPlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { ArrowRightLeft, ChevronDown, ChevronRight, Copy, Download, FilePlus2, Folder, FolderPlus, LoaderCircle, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from "react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Input } from "../../components/ui/input";
@@ -8,9 +9,13 @@ import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import type { Folder as FolderModel, RequestSummary } from "../../types/workspace";
 import { MoveItemDialog, type MoveTarget } from "./move-item-dialog";
+import { exportWorkspace, importWorkspace } from "./workspace-transfer";
 
 type DeleteTarget = { kind: "collection" | "folder" | "request"; id: string; name: string };
 type RenameTarget = { kind: "collection" | "folder" | "request"; id: string };
+type DragItem = { kind: "folder" | "request"; id: string };
+type DropTarget = { kind: "collection" | "folder" | "request"; id: string; collectionId: string; parentId: string | null; position: number };
+const dragMime = "application/x-laika-sidebar-item";
 
 const childKey = (collectionId: string, parentId: string | null) => `${collectionId}:${parentId ?? "root"}`;
 
@@ -36,11 +41,26 @@ export function CollectionsSidebar() {
   const duplicateRequest = useAppStore((state) => state.duplicateRequest);
   const deleteRequest = useAppStore((state) => state.deleteRequest);
   const saveDraft = useAppStore((state) => state.saveDraft);
+  const moveFolder = useAppStore((state) => state.moveFolder);
+  const moveRequest = useAppStore((state) => state.moveRequest);
 
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<DeleteTarget | null>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+  const importInput = useRef<HTMLInputElement>(null);
+
+  const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try { await importWorkspace(file); await useAppStore.getState().loadWorkspace(); toast.success("Collections imported"); }
+    catch (error) { toast.error("Import failed", { description: error instanceof Error ? error.message : "Check the file and try again." }); }
+  };
+  const downloadExport = async () => {
+    try { await exportWorkspace(collections, folders, requests); toast.success("Collections exported"); }
+    catch { toast.error("Export failed"); }
+  };
 
   const foldersByParent = useMemo(() => {
     const map = new Map<string, FolderModel[]>();
@@ -84,6 +104,22 @@ export function CollectionsSidebar() {
     if (pendingDelete.kind === "request") void deleteRequest(pendingDelete.id);
   };
 
+  const dropItem = (event: DragEvent, target: DropTarget) => {
+    event.preventDefault();
+    try {
+      const item = JSON.parse(event.dataTransfer.getData(dragMime)) as DragItem;
+      if (item.id === target.id) return;
+      const parentId = target.kind === "collection" ? null : target.parentId;
+      const position = target.kind === "collection" ? Number.MAX_SAFE_INTEGER : target.position;
+      if (item.kind === "folder") void moveFolder(item.id, target.collectionId, parentId, position);
+      else {
+        const folderId = target.kind === "folder" ? target.id : parentId;
+        const requestPosition = target.kind === "folder" ? (requestsByParent.get(childKey(target.collectionId, target.id)) ?? []).length : position;
+        void moveRequest(item.id, target.collectionId, folderId, requestPosition);
+      }
+    } catch { /* Ignore data from outside Laika. */ }
+  };
+
   const renderRequest = (request: RequestSummary, level: number) => (
     <TreeRow
       key={request.id}
@@ -95,6 +131,8 @@ export function CollectionsSidebar() {
       onRename={(value) => commitRename({ kind: "request", id: request.id }, value)}
       onCancelRename={() => setRenaming(null)}
       onActivate={() => void openSavedRequest(request.id)}
+      dragItem={{ kind: "request", id: request.id }}
+      onDrop={(event) => dropItem(event, { kind: "request", id: request.id, collectionId: request.collectionId, parentId: request.folderId, position: (requestsByParent.get(childKey(request.collectionId, request.folderId)) ?? []).findIndex((item) => item.id === request.id) })}
       actions={[
         { icon: <Pencil size={13} />, label: `Rename ${request.name}`, onClick: () => setRenaming({ kind: "request", id: request.id }) },
         { icon: <Copy size={13} />, label: `Duplicate ${request.name}`, onClick: () => void duplicateRequest(request.id) },
@@ -122,6 +160,8 @@ export function CollectionsSidebar() {
           onRename={(value) => commitRename({ kind: "folder", id: folder.id }, value)}
           onCancelRename={() => setRenaming(null)}
           onActivate={() => toggleNode(folder.id)}
+          dragItem={{ kind: "folder", id: folder.id }}
+          onDrop={(event) => dropItem(event, { kind: "folder", id: folder.id, collectionId: folder.collectionId, parentId: folder.parentId, position: (foldersByParent.get(childKey(folder.collectionId, folder.parentId)) ?? []).findIndex((item) => item.id === folder.id) })}
           actions={[
             { icon: <FilePlus2 size={13} />, label: `Save current request into ${folder.name}`, onClick: () => void saveDraft(folder.collectionId, folder.id) },
             { icon: <FolderPlus size={13} />, label: `New folder in ${folder.name}`, onClick: () => void createFolder(folder.collectionId, folder.id, "New folder") },
@@ -156,9 +196,13 @@ export function CollectionsSidebar() {
         <Button variant="secondary" size="icon" aria-label="New collection" title="New collection" onClick={() => setCreatingCollection(true)}>
           <Plus size={15} />
         </Button>
+        <Button variant="ghost" size="icon" aria-label="Export collections" title="Export collections" onClick={() => void downloadExport()}><Download size={15} /></Button>
+        <Button variant="ghost" size="icon" aria-label="Import collections" title="Import collections" onClick={() => importInput.current?.click()}><Upload size={15} /></Button>
+        <input ref={importInput} className="hidden" type="file" accept="application/json,.json" onChange={(event) => void importFile(event)} aria-label="Import Laika collections file" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-3 panel-scroll">
+        {workspaceLoading ? <div className="flex items-center justify-center gap-2 px-3 py-8 text-xs text-[var(--muted)]" role="status"><LoaderCircle className="animate-spin" size={15} /> Loading workspace…</div> : null}
         {workspaceError ? (
           <p className="px-3 text-xs text-[var(--danger)]" role="alert">
             {workspaceError.message}
@@ -189,6 +233,7 @@ export function CollectionsSidebar() {
                   onRename={(value) => commitRename({ kind: "collection", id: collection.id }, value)}
                   onCancelRename={() => setRenaming(null)}
                   onActivate={() => toggleNode(collection.id)}
+                  onDrop={(event) => dropItem(event, { kind: "collection", id: collection.id, collectionId: collection.id, parentId: null, position: Number.MAX_SAFE_INTEGER })}
                   actions={[
                     { icon: <FilePlus2 size={13} />, label: `Save current request into ${collection.name}`, onClick: () => void saveDraft(collection.id, null) },
                     { icon: <FolderPlus size={13} />, label: `New folder in ${collection.name}`, onClick: () => void createFolder(collection.id, null, "New folder") },
@@ -271,9 +316,11 @@ interface TreeRowProps {
   onActivate: () => void;
   onRename: (value: string) => void;
   onCancelRename: () => void;
+  dragItem?: DragItem;
+  onDrop?: (event: DragEvent) => void;
 }
 
-function TreeRow({ level, icon, label, count, expanded, active, renaming, actions, onActivate, onRename, onCancelRename }: TreeRowProps) {
+function TreeRow({ level, icon, label, count, expanded, active, renaming, actions, onActivate, onRename, onCancelRename, dragItem, onDrop }: TreeRowProps) {
   if (renaming) {
     return (
       <div className="px-3 py-0.5" style={{ paddingLeft: 12 + level * 14 }}>
@@ -283,7 +330,14 @@ function TreeRow({ level, icon, label, count, expanded, active, renaming, action
   }
 
   return (
-    <div className={cn("group flex items-center gap-1 pr-1.5", active && "bg-[var(--surface-muted)]")} style={{ paddingLeft: 6 + level * 14 }}>
+    <div
+      className={cn("group flex items-center gap-1 pr-1.5", active && "bg-[var(--surface-muted)]")}
+      style={{ paddingLeft: 6 + level * 14 }}
+      draggable={Boolean(dragItem)}
+      onDragStart={(event) => { if (dragItem) { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData(dragMime, JSON.stringify(dragItem)); } }}
+      onDragOver={(event) => { if (onDrop) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
+      onDrop={onDrop}
+    >
       <button
         type="button"
         onClick={onActivate}

@@ -1,6 +1,9 @@
-import { AlertTriangle, Clipboard, Inbox, LoaderCircle, RotateCw } from "lucide-react";
+import { AlertTriangle, Clipboard, Inbox, LoaderCircle, RotateCw, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import { CodeEditor } from "../../components/ui/code-editor";
+import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
@@ -25,6 +28,8 @@ function prettyBody(response: HttpResponse) {
 }
 
 export function ResponsePanel() {
+  const [bodySearch, setBodySearch] = useState("");
+  const [headerSearch, setHeaderSearch] = useState("");
   const response = useAppStore((state) => state.response);
   const error = useAppStore((state) => state.requestError);
   const isSending = useAppStore((state) => state.isSending);
@@ -35,6 +40,9 @@ export function ResponsePanel() {
   const sendRequest = useAppStore((state) => state.sendRequest);
 
   const visibleBody = response ? (bodyView === "pretty" ? prettyBody(response) : response.body) : "";
+  const responseLanguage = response?.contentType?.toLowerCase().includes("json") || /^\s*[\[{]/.test(visibleBody) ? "json" : "plaintext";
+  const bodyMatches = bodySearch ? visibleBody.toLowerCase().split(bodySearch.toLowerCase()).length - 1 : 0;
+  const visibleHeaders = useMemo(() => response?.headers.filter((header) => `${header.name} ${header.value}`.toLowerCase().includes(headerSearch.toLowerCase())) ?? [], [headerSearch, response]);
   const copyBody = async () => {
     try {
       await navigator.clipboard.writeText(visibleBody);
@@ -91,6 +99,8 @@ export function ResponsePanel() {
                   >{view}</button>
                 ))}
               </div>
+              <label className="relative ml-3 block max-w-56 flex-1"><Search className="absolute left-2 top-2 text-[var(--muted)]" size={14} /><Input className="h-7 pl-7 text-xs" value={bodySearch} onChange={(event) => setBodySearch(event.target.value)} placeholder="Search response" aria-label="Search response body" /></label>
+              {bodySearch ? <span className="ml-2 text-xs text-[var(--muted)]">{bodyMatches} matches</span> : null}
               <Button className="ml-auto" variant="ghost" size="icon" onClick={() => void copyBody()} aria-label="Copy response" title="Copy response">
                 <Clipboard size={15} />
               </Button>
@@ -98,13 +108,14 @@ export function ResponsePanel() {
             {response.truncated ? (
               <div className="border-b border-[var(--border)] bg-amber-500/10 px-3 py-2 text-xs text-[var(--status-client)]">Response stopped at the 10 MB display limit.</div>
             ) : null}
-            <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-5 panel-scroll">{visibleBody || "(Empty response body)"}</pre>
+            <CodeEditor className="min-h-0 flex-1 rounded-none border-0" value={visibleBody || "(Empty response body)"} language={responseLanguage} readOnly ariaLabel="Response body" />
           </TabsContent>
           <TabsContent value="headers" className="overflow-auto p-4 panel-scroll">
+            <label className="relative mb-3 block max-w-sm"><Search className="absolute left-2.5 top-2.5 text-[var(--muted)]" size={14} /><Input className="pl-8" value={headerSearch} onChange={(event) => setHeaderSearch(event.target.value)} placeholder="Filter headers" aria-label="Filter response headers" /></label>
             <div className="grid grid-cols-[minmax(120px,0.7fr)_minmax(180px,1.3fr)] border-b border-[var(--border)] pb-2 text-xs font-medium uppercase text-[var(--muted)]">
               <span>Name</span><span>Value</span>
             </div>
-            {response.headers.map((header, index) => (
+            {visibleHeaders.map((header, index) => (
               <div key={`${header.name}-${index}`} className="grid grid-cols-[minmax(120px,0.7fr)_minmax(180px,1.3fr)] gap-3 border-b border-[var(--border)] py-2 text-xs">
                 <span className="font-medium">{header.name}</span><span className="break-all font-mono text-[var(--muted)]">{header.value}</span>
               </div>

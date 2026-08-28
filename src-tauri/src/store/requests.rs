@@ -203,14 +203,43 @@ impl Store {
                 .await?;
         }
 
+        let (source_collection_id, source_folder_id, source_position): (
+            String,
+            Option<String>,
+            i64,
+        ) = sqlx::query_as(
+            "SELECT collection_id, folder_id, position FROM saved_request WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_sqlx_error)?
+        .ok_or_else(ApplicationError::not_found)?;
+
         let mut tx = self.pool.begin().await.map_err(map_sqlx_error)?;
+        sqlx::query("UPDATE saved_request SET position = position - 1 WHERE collection_id = ? AND folder_id IS ? AND id <> ? AND position > ?")
+            .bind(&source_collection_id).bind(&source_folder_id).bind(id).bind(source_position)
+            .execute(&mut *tx).await.map_err(map_sqlx_error)?;
+        let destination_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM saved_request WHERE collection_id = ? AND folder_id IS ? AND id <> ?")
+            .bind(collection_id).bind(folder_id).bind(id).fetch_one(&mut *tx).await.map_err(map_sqlx_error)?;
+        let same_parent =
+            source_collection_id == collection_id && source_folder_id.as_deref() == folder_id;
+        let desired_position = if same_parent && source_position < position {
+            position.saturating_sub(1)
+        } else {
+            position
+        }
+        .clamp(0, destination_count);
+        sqlx::query("UPDATE saved_request SET position = position + 1 WHERE collection_id = ? AND folder_id IS ? AND id <> ? AND position >= ?")
+            .bind(collection_id).bind(folder_id).bind(id).bind(desired_position)
+            .execute(&mut *tx).await.map_err(map_sqlx_error)?;
         let updated = sqlx::query(
             "UPDATE saved_request SET collection_id = ?, folder_id = ?, position = ?, updated_at = ?
              WHERE id = ?",
         )
         .bind(collection_id)
         .bind(folder_id)
-        .bind(position.max(0) * 2)
+        .bind(desired_position)
         .bind(now_ms())
         .bind(id)
         .execute(&mut *tx)
@@ -220,7 +249,10 @@ impl Store {
             return Err(ApplicationError::not_found());
         }
 
-        resequence_requests(&mut tx, collection_id, folder_id).await?;
+        resequence_requests(&mut tx, &source_collection_id, source_folder_id.as_deref()).await?;
+        if !same_parent {
+            resequence_requests(&mut tx, collection_id, folder_id).await?;
+        }
         tx.commit().await.map_err(map_sqlx_error)?;
         Ok(())
     }

@@ -1,6 +1,7 @@
-import { ChevronDown, Save, Send, Square } from "lucide-react";
-import { useEffect, type FormEvent } from "react";
+import { ChevronDown, CopyPlus, Import, Save, Send, Square, Terminal } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "../../components/ui/button";
+import { CodeEditor } from "../../components/ui/code-editor";
 import { Input } from "../../components/ui/input";
 import { KeyValueTable } from "../../components/ui/key-value-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -8,11 +9,13 @@ import { methodColor } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import { AUTH_TYPES, BODY_MODES, HTTP_METHODS, type AuthType, type BodyMode, type HttpMethod, type RequestEditorTab } from "../../types/http";
+import { CurlDialog } from "./curl-dialog";
 
 const bodyLabels: Record<BodyMode, string> = { none: "None", json: "JSON", text: "Text", form: "Form" };
 const authLabels: Record<AuthType, string> = { none: "No authentication", bearer: "Bearer token", basic: "Basic auth" };
 
 export function RequestWorkspace() {
+  const [curlDialog, setCurlDialog] = useState<"generate" | "import" | null>(null);
   const draft = useAppStore((state) => state.draft);
   const requestTab = useAppStore((state) => state.requestTab);
   const isSending = useAppStore((state) => state.isSending);
@@ -31,22 +34,15 @@ export function RequestWorkspace() {
   const cancelRequest = useAppStore((state) => state.cancelRequest);
   const isSaving = useAppStore((state) => state.isSaving);
   const saveDraft = useAppStore((state) => state.saveDraft);
+  const saveAsDraft = useAppStore((state) => state.saveAsDraft);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-        event.preventDefault();
-        if (!isSending) void sendRequest();
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        void saveDraft();
-      }
       if (event.key === "Escape" && isSending) void cancelRequest();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelRequest, isSending, saveDraft, sendRequest]);
+  }, [cancelRequest, isSending]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -55,7 +51,7 @@ export function RequestWorkspace() {
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[var(--surface)]" aria-label="Request editor">
-      <form className="flex gap-2 border-b border-[var(--border)] p-3" onSubmit={submit}>
+      <form className="flex flex-wrap gap-2 border-b border-[var(--border)] p-3" onSubmit={submit}>
         <label className="relative shrink-0">
           <span className="sr-only">HTTP method</span>
           <select
@@ -80,7 +76,7 @@ export function RequestWorkspace() {
             <Square size={14} fill="currentColor" /> Cancel
           </Button>
         ) : (
-          <Button className="h-10 px-4" type="submit"><Send size={15} /> Send</Button>
+          <Button className="h-10 px-4" type="submit" aria-keyshortcuts="Control+Enter Meta+Enter"><Send size={15} /> Send</Button>
         )}
         <Button
           className="h-10 px-3"
@@ -89,9 +85,13 @@ export function RequestWorkspace() {
           disabled={isSaving}
           onClick={() => void saveDraft()}
           title="Save request (Ctrl+S)"
+          aria-keyshortcuts="Control+S Meta+S"
         >
           <Save size={15} /> Save
         </Button>
+        <Button className="h-10 px-3" type="button" variant="ghost" onClick={() => void saveAsDraft()} title="Save as (Ctrl+Shift+S)"><CopyPlus size={15} /><span className="sr-only">Save as</span></Button>
+        <Button className="h-10 px-3" type="button" variant="ghost" onClick={() => setCurlDialog("generate")} title="Generate cURL"><Terminal size={15} /><span className="sr-only">Generate cURL</span></Button>
+        <Button className="h-10 px-3" type="button" variant="ghost" onClick={() => setCurlDialog("import")} title="Import cURL"><Import size={15} /><span className="sr-only">Import cURL</span></Button>
       </form>
 
       <Tabs className="flex min-h-0 flex-1 flex-col" value={requestTab} onValueChange={(value) => setRequestTab(value as RequestEditorTab)}>
@@ -126,13 +126,12 @@ export function RequestWorkspace() {
           ) : draft.bodyMode === "form" ? (
             <div className="-mx-4 mt-2"><KeyValueTable rows={draft.form} keyPlaceholder="Field" onChange={(id, patch) => updateEntry("form", id, patch)} onAdd={() => addEntry("form")} onRemove={(id) => removeEntry("form", id)} /></div>
           ) : (
-            <textarea
-              className="mt-3 min-h-40 flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-sm leading-6 focus:border-[var(--focus)] focus:outline-none"
+            <CodeEditor
+              className="mt-3 min-h-40 flex-1"
               value={draft.body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder={draft.bodyMode === "json" ? "{\n  \"key\": \"value\"\n}" : "Request body"}
-              aria-label="Request body"
-              spellCheck={false}
+              onChange={setBody}
+              language={draft.bodyMode === "json" ? "json" : "plaintext"}
+              ariaLabel="Request body"
             />
           )}
         </TabsContent>
@@ -175,6 +174,7 @@ export function RequestWorkspace() {
           </div>
         </TabsContent>
       </Tabs>
+      <CurlDialog open={curlDialog !== null} mode={curlDialog ?? "generate"} onOpenChange={(open) => { if (!open) setCurlDialog(null); }} />
     </section>
   );
 }

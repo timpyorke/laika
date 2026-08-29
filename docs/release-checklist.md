@@ -17,17 +17,25 @@ Phase 7G decisions in [next-roadmap.md](next-roadmap.md).
 
 ## Quality gates
 
-- [ ] `pnpm build` passes.
-- [ ] `pnpm test` passes.
-- [ ] `pnpm security:check` passes.
-- [ ] `pnpm audit --audit-level moderate` passes.
-- [ ] `cargo audit --file src-tauri/Cargo.lock` passes with only documented exceptions.
-- [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml --check` passes.
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` passes.
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` passes.
-- [ ] `pnpm perf:baseline` stays within the documented investigation budgets,
-      or any variance is repeated and explained.
-- [ ] The CI quality-and-Windows-bundle job passes for the release commit.
+- [x] `pnpm build` passes.
+- [x] `pnpm test` passes (49/49, 2026-08-29 against `b0d1807`).
+- [x] `pnpm security:check` passes.
+- [x] `pnpm audit --audit-level moderate` passes.
+- [x] `cargo audit --file src-tauri/Cargo.lock` passes with only documented exceptions
+      (Linux-only GTK/Stronghold maintenance warnings per
+      [security-and-privacy.md](security-and-privacy.md#dependencies-and-maintenance);
+      no vulnerabilities).
+- [x] `cargo fmt --manifest-path src-tauri/Cargo.toml --check` passes.
+- [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` passes.
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` passes (42/42, 2026-08-29
+      against `b0d1807`).
+- [x] `pnpm perf:baseline` stays within the documented investigation budgets,
+      or any variance is repeated and explained (2026-08-29 run against
+      `b0d1807`: all operations within the provisional p95 budgets in
+      [performance.md](performance.md); peak working set 112.2 MiB vs. the
+      175 MiB budget).
+- [x] The CI quality-and-Windows-bundle job passes for the release commit
+      (run `33249429752`, `b0d1807`, success).
 
 ## Data and security
 

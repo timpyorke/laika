@@ -34,7 +34,7 @@
         "frame-ancestors": "'none'"
       },
       "devCsp": null,
-      "freezePrototype": true
+      "freezePrototype": false
     }
   },
   "bundle": {

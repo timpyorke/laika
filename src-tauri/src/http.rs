@@ -338,8 +338,7 @@ fn validate_request(input: HttpRequestInput) -> Result<ValidatedRequest, Applica
     }
     match &input.auth {
         RequestAuth::Bearer { token } => {
-            if token.trim().is_empty()
-                || HeaderValue::from_str(&format!("Bearer {token}")).is_err()
+            if token.trim().is_empty() || HeaderValue::from_str(&format!("Bearer {token}")).is_err()
             {
                 return Err(ApplicationError::invalid_auth());
             }

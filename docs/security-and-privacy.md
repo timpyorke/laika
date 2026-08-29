@@ -22,6 +22,13 @@ physical access to an unlocked machine is outside the application boundary.
   variables, cookies, API keys, client secrets, and vault master passwords.
 - Workspace data includes request URLs, non-secret parameters and headers,
   bodies, collections, environments, history, and test results.
+- Diagnostic data is a third, structurally narrower category: an id, a
+  timestamp, the app version, the OS, and closed enums for operation category
+  (HTTP request, collection run, backup, restore), outcome, `ApplicationErrorCode`,
+  and a coarse timing bucket. The `DiagnosticEvent` type has no field a URL,
+  header, parameter, body, environment value, filesystem path, vault state, or
+  database content could be written into, so nothing in the other two
+  categories can reach it.
 - Secret environment values and saved authentication credentials are stored in
   the encrypted Stronghold snapshot. SQLite stores only opaque secret
   references.
@@ -32,8 +39,14 @@ physical access to an unlocked machine is outside the application boundary.
   test results, cURL snippets, or collection exports are persisted or copied.
 - A whole-workspace backup includes the encrypted Stronghold snapshot and salt
   when the vault exists. It never decrypts the vault for export.
-- Laika has no telemetry, analytics, remote logging, or automatic diagnostics.
-  Network traffic is limited to endpoints explicitly requested by the user.
+- Laika has no telemetry, analytics, or remote logging, and diagnostics are
+  never uploaded automatically. Diagnostics are disabled by default; when a
+  user enables them in Settings, Laika records allowlisted `DiagnosticEvent`
+  rows locally in SQLite (retained newest [`DIAGNOSTICS_RETENTION_LIMIT`],
+  currently 500, per workspace) and only leaves the device through the
+  explicit "Export diagnostics…" action, which writes a JSON file to a
+  location the user chooses. Network traffic is otherwise limited to
+  endpoints explicitly requested by the user.
 
 ## Implemented controls
 
@@ -71,6 +84,12 @@ physical access to an unlocked machine is outside the application boundary.
 - Redaction recognizes common credential names and normalized suffixes such as
   `*_token`, `*_secret`, `*_password`, and `*_api_key`. Tests verify these values
   do not enter SQLite or generated cURL snippets.
+- Diagnostic events are safe by construction rather than by redaction: the
+  `DiagnosticEvent` schema (`src-tauri/src/store/diagnostics.rs`) only accepts
+  closed enums, so there is no string field a URL, header, body, or secret
+  could be written into. An adversarial test plants secret-shaped tokens in a
+  request's URL, headers, and body, runs it with diagnostics enabled, and
+  asserts none of the tokens appear in the resulting diagnostic rows.
 
 ### Dependencies and maintenance
 

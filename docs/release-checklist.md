@@ -35,7 +35,14 @@ and clean-machine validation remain publication blockers.
 - [ ] Exercise an upgrade from the previous stable version without data loss.
 - [x] Complete the security and privacy review, including CSP, permissions,
       dependency audit, logging, clipboard handling, and secret redaction.
-- [ ] Validate opt-in diagnostics separately before enabling any collection.
+- [ ] Validate opt-in diagnostics separately before enabling any collection:
+      confirm the toggle defaults off, enable it and exercise a failing
+      request, a passing request, a collection run, and a backup/restore,
+      then open the exported JSON and confirm every event contains only the
+      allowlisted fields (id, timestamp, app version, OS, category, outcome,
+      error code, timing bucket) and no URL, header, body, or secret value.
+      `cargo test --manifest-path src-tauri/Cargo.toml diagnostic_events_never_contain_request_content_or_secrets`
+      covers the adversarial case; this step is the manual export spot-check.
 - [ ] Review dependency changes and unresolved security advisories.
 
 ## Distribution artifacts

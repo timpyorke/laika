@@ -7,6 +7,7 @@
 
 mod collections;
 pub mod commands;
+pub(crate) mod diagnostics;
 mod environments;
 mod history;
 pub mod models;

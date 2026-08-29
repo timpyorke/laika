@@ -324,7 +324,7 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [x] Add backup/restore and database recovery workflows.
 - [x] Review security: secret handling, command permissions, CSP, and dependency auditing.
 - [x] Add performance tests for history/database operations and large responses.
-- [ ] Add opt-in crash/error diagnostics with no sensitive data.
+- [x] Add opt-in crash/error diagnostics with no sensitive data.
 - [x] Write a release checklist.
 - [ ] Write complete user documentation.
 
@@ -373,6 +373,14 @@ Goal: Prepare the app for distribution and long-term maintenance.
   typical, and maximum workspaces plus 10 MiB and 50 MiB response boundaries.
   Scheduled/manual Windows CI stores informational results; provisional budgets
   and the initial baseline are documented in [performance.md](performance.md).
+- Diagnostics are opt-in and disabled by default. `DiagnosticEvent`
+  (`src-tauri/src/store/diagnostics.rs`) only carries an id, a timestamp, the
+  app version, the OS, and closed enums for operation category, outcome,
+  error code, and a coarse timing bucket, so it has no field a URL, header,
+  body, environment value, or secret could be written into. Events are
+  recorded locally in SQLite for HTTP requests, collection runs, and
+  backup/restore, retained newest 500 per workspace, and only leave the
+  device through an explicit "Export diagnostics…" action in Settings.
 
 ## Cross-Phase Quality Gates
 

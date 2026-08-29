@@ -4,6 +4,9 @@
 //! repository method, return the contract type. Business rules belong in the
 //! repository modules.
 
+use super::diagnostics::{
+    DiagnosticCategory, DiagnosticOutcome, DiagnosticsExport, DiagnosticsSettings, TimingBucket,
+};
 use super::history::{HistoryDraft, HistoryResponse};
 use super::models::{
     Collection, Environment, EnvironmentState, EnvironmentVariable, Folder, HistoryEntry,
@@ -23,7 +26,8 @@ use crate::testing::{
 };
 use crate::variables::{resolve_assertions, resolve_request};
 use std::time::Instant;
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 use zeroize::{Zeroize, Zeroizing};
 
 /// Runs the request, then records it. History is best-effort: a storage failure
@@ -52,7 +56,9 @@ pub async fn execute_http_request(
         redactions.push(secret);
     }
     redactions.extend(resolve_request(&mut request, &variables, &secrets)?);
+    let started = Instant::now();
     let result = engine.execute(request).await;
+    let elapsed_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
 
     let outcome = match &result {
         Ok(response) => Some(Ok(history_response(response, &redactions))),
@@ -60,8 +66,22 @@ pub async fn execute_http_request(
         Err(error) if error.code.is_pre_flight() => None,
         Err(error) => Some(Err(error.code.as_str())),
     };
-    if let (Some(outcome), Ok(store)) = (outcome, store.get()) {
-        let _ = store.record_execution(draft, outcome).await;
+    if let Ok(store) = store.get() {
+        let (diagnostic_outcome, error_code) = match &result {
+            Ok(_) => (DiagnosticOutcome::Success, None),
+            Err(error) => (DiagnosticOutcome::Failure, Some(error.code)),
+        };
+        let _ = store
+            .record_diagnostic_event(
+                DiagnosticCategory::HttpRequest,
+                diagnostic_outcome,
+                error_code,
+                Some(TimingBucket::from_millis(elapsed_ms)),
+            )
+            .await;
+        if let Some(outcome) = outcome {
+            let _ = store.record_execution(draft, outcome).await;
+        }
     }
 
     result
@@ -583,6 +603,21 @@ pub(crate) async fn run_collection_core(
         },
         results,
     };
+    let run_outcome = if run.summary.failed_requests == 0 {
+        DiagnosticOutcome::Success
+    } else {
+        DiagnosticOutcome::Failure
+    };
+    let _ = repository
+        .record_diagnostic_event(
+            DiagnosticCategory::CollectionRun,
+            run_outcome,
+            None,
+            Some(TimingBucket::from_millis(
+                run.summary.duration_ms.max(0) as u64
+            )),
+        )
+        .await;
     repository.save_test_run(&run).await?;
     Ok(run)
 }
@@ -601,6 +636,65 @@ pub async fn get_test_run(
     id: String,
 ) -> Result<TestRun, ApplicationError> {
     store.get()?.get_test_run(&id).await
+}
+
+#[tauri::command]
+pub async fn get_diagnostics_settings(
+    store: State<'_, StoreHandle>,
+) -> Result<DiagnosticsSettings, ApplicationError> {
+    Ok(DiagnosticsSettings {
+        enabled: store.get()?.diagnostics_enabled().await?,
+    })
+}
+
+#[tauri::command]
+pub async fn set_diagnostics_enabled(
+    store: State<'_, StoreHandle>,
+    enabled: bool,
+) -> Result<(), ApplicationError> {
+    store.get()?.set_diagnostics_enabled(enabled).await
+}
+
+#[tauri::command]
+pub async fn clear_diagnostics(store: State<'_, StoreHandle>) -> Result<(), ApplicationError> {
+    store.get()?.clear_diagnostic_events().await
+}
+
+/// Writes an allowlisted JSON export to a user-chosen location. Returns
+/// `None` if the user cancels the save dialog.
+#[tauri::command]
+pub async fn export_diagnostics(
+    app: AppHandle,
+    store: State<'_, StoreHandle>,
+) -> Result<Option<String>, ApplicationError> {
+    let events = store.get()?.list_diagnostic_events().await?;
+    let selected = app
+        .dialog()
+        .file()
+        .add_filter("Laika diagnostics export", &["json"])
+        .set_file_name(format!(
+            "laika-diagnostics-{}.json",
+            super::models::now_ms()
+        ))
+        .blocking_save_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let path = selected
+        .into_path()
+        .map_err(|_| ApplicationError::database())?;
+    let export = DiagnosticsExport {
+        exported_at: super::models::now_ms(),
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        os: std::env::consts::OS.to_owned(),
+        events,
+    };
+    let bytes = serde_json::to_vec_pretty(&export).map_err(|_| ApplicationError::database())?;
+    std::fs::write(&path, bytes).map_err(|_| ApplicationError::database())?;
+    Ok(path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_owned))
 }
 
 fn failed_case(

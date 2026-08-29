@@ -34,6 +34,10 @@ fn main() {
         "run_collection",
         "list_test_runs",
         "get_test_run",
+        "get_diagnostics_settings",
+        "set_diagnostics_enabled",
+        "clear_diagnostics",
+        "export_diagnostics",
         "create_workspace_backup",
         "stage_workspace_restore",
     ];

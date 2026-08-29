@@ -77,6 +77,10 @@ pub fn run() {
             commands::run_collection,
             commands::list_test_runs,
             commands::get_test_run,
+            commands::get_diagnostics_settings,
+            commands::set_diagnostics_enabled,
+            commands::clear_diagnostics,
+            commands::export_diagnostics,
             backup::create_workspace_backup,
             backup::stage_workspace_restore,
         ])

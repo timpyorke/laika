@@ -9,6 +9,9 @@ pub const MAX_STORED_BODY_BYTES: usize = 1024 * 1024;
 /// Number of history entries kept per workspace; older rows are trimmed after
 /// every insert.
 pub const HISTORY_RETENTION_LIMIT: i64 = 1_000;
+/// Number of diagnostic events kept per workspace; older rows are trimmed
+/// after every insert.
+pub const DIAGNOSTICS_RETENTION_LIMIT: i64 = 500;
 pub const MAX_NAME_LENGTH: usize = 200;
 
 /// Credential-shaped key names whose values are dropped before request,

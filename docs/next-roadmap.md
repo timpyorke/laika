@@ -6,8 +6,8 @@ the deferred CLI, scripting, or additional protocol clients.
 
 ## Current Status
 
-Phase 7D performance baselines were completed on 2026-08-29. The recommended
-next task is Phase 7E privacy-safe diagnostics.
+Phase 7E privacy-safe diagnostics were completed on 2026-08-29. The
+recommended next task is Phase 7F user documentation and release validation.
 
 ### Completed 7D Scope
 
@@ -53,8 +53,10 @@ reproducible baselines and explicit provisional budgets. See
 
 ### 7E. Privacy-Safe Diagnostics
 
-**Outcome:** A user can explicitly create useful diagnostic information without
-submitting request content or credentials.
+**Status: Complete.** A user can explicitly create useful diagnostic
+information without submitting request content or credentials. See the
+diagnostics data-classification entry and adversarial-redaction control in
+[security-and-privacy.md](security-and-privacy.md).
 
 1. Define an allowlisted event schema for app version, OS version, error code,
    operation category, and timing bucket.

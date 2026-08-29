@@ -1,11 +1,12 @@
-import { ArchiveRestore, DatabaseBackup, LockKeyhole, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { ArchiveRestore, DatabaseBackup, LineChart, LockKeyhole, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "../../components/ui/dialog";
 import { normalizeApplicationError } from "../../lib/application-error";
 import { createWorkspaceBackup, stageWorkspaceRestore, type RestoreResult } from "./backup-client";
+import { exportDiagnostics, getDiagnosticsSettings, setDiagnosticsEnabled } from "./diagnostics-client";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -13,9 +14,52 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const [busy, setBusy] = useState<"backup" | "restore" | null>(null);
+  const [busy, setBusy] = useState<"backup" | "restore" | "diagnostics-toggle" | "diagnostics-export" | null>(
+    null,
+  );
   const [confirmingRestore, setConfirmingRestore] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<RestoreResult | null>(null);
+  const [diagnosticsEnabled, setDiagnosticsEnabledState] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    getDiagnosticsSettings()
+      .then((settings) => setDiagnosticsEnabledState(settings.enabled))
+      .catch(() => {
+        // Leave the toggle at its previous value; the action buttons below
+        // still surface a normalized error if the user tries to act.
+      });
+  }, [open]);
+
+  const toggleDiagnostics = async () => {
+    setBusy("diagnostics-toggle");
+    try {
+      const next = !diagnosticsEnabled;
+      await setDiagnosticsEnabled(next);
+      setDiagnosticsEnabledState(next);
+      toast.success(next ? "Diagnostics enabled" : "Diagnostics disabled");
+    } catch (error) {
+      const normalized = normalizeApplicationError(error);
+      toast.error(normalized.title, { description: normalized.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportDiagnosticsFile = async () => {
+    setBusy("diagnostics-export");
+    try {
+      const fileName = await exportDiagnostics();
+      if (fileName) {
+        toast.success("Diagnostics exported", { description: fileName });
+      }
+    } catch (error) {
+      const normalized = normalizeApplicationError(error);
+      toast.error(normalized.title, { description: normalized.message });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const createBackup = async () => {
     setBusy("backup");
@@ -87,6 +131,41 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <Button variant="secondary" disabled={busy !== null} onClick={() => setConfirmingRestore(true)}>
                 <RotateCcw size={13} />
                 {busy === "restore" ? "Restoring…" : "Restore…"}
+              </Button>
+            </div>
+          </section>
+
+          <section className="mt-3 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+            <div className="flex items-start gap-3 border-b border-[var(--border)] p-3.5">
+              <div className="mt-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-2 text-[var(--accent)]">
+                <LineChart size={17} aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-display text-[13.5px] font-semibold">Diagnostics</h2>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--muted)]">
+                  Off by default. When on, Laika records the app version, OS, an operation category, a success/failure
+                  outcome, an error code, and a coarse timing bucket for requests, collection runs, and
+                  backup/restore — never a URL, header, parameter, body, environment value, or secret.
+                </p>
+              </div>
+              <Button variant="secondary" disabled={busy !== null} onClick={() => void toggleDiagnostics()}>
+                {busy === "diagnostics-toggle" ? "Updating…" : diagnosticsEnabled ? "Disable" : "Enable"}
+              </Button>
+            </div>
+
+            <div className="flex items-start gap-3 p-3.5">
+              <div className="mt-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-2 text-[var(--muted-dim)]">
+                <LineChart size={17} aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-display text-[13.5px] font-semibold">Export diagnostics</h2>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--muted)]">
+                  Save the recorded events as a JSON file. Nothing is ever sent automatically — export is the only way
+                  diagnostic data leaves this device.
+                </p>
+              </div>
+              <Button disabled={busy !== null} onClick={() => void exportDiagnosticsFile()}>
+                {busy === "diagnostics-export" ? "Exporting…" : "Export diagnostics…"}
               </Button>
             </div>
           </section>

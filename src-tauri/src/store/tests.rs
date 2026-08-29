@@ -1,7 +1,8 @@
+use super::diagnostics::{DiagnosticCategory, DiagnosticOutcome, TimingBucket};
 use super::history::{HistoryDraft, HistoryResponse};
 use super::models::{
     AuthRecord, KeyValueRecord, PersistVariableInput, RequestSnapshot, SaveRequestInput,
-    MAX_STORED_BODY_BYTES,
+    DIAGNOSTICS_RETENTION_LIMIT, MAX_STORED_BODY_BYTES,
 };
 use super::Store;
 use crate::error::ApplicationErrorCode;
@@ -756,4 +757,119 @@ async fn redacts_credential_headers_in_history() {
     .await
     .unwrap();
     assert!(!stored.contains("super-secret"));
+}
+
+#[tokio::test]
+async fn diagnostic_events_are_a_no_op_when_disabled() {
+    let store = Store::open_in_memory().await.unwrap();
+    assert!(!store.diagnostics_enabled().await.unwrap());
+
+    store
+        .record_diagnostic_event(
+            DiagnosticCategory::HttpRequest,
+            DiagnosticOutcome::Success,
+            None,
+            Some(TimingBucket::from_millis(42)),
+        )
+        .await
+        .unwrap();
+
+    assert!(store.list_diagnostic_events().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn enabling_diagnostics_records_and_trims_to_the_retention_limit() {
+    let store = Store::open_in_memory().await.unwrap();
+    store.set_diagnostics_enabled(true).await.unwrap();
+
+    for _ in 0..(DIAGNOSTICS_RETENTION_LIMIT + 5) {
+        store
+            .record_diagnostic_event(
+                DiagnosticCategory::HttpRequest,
+                DiagnosticOutcome::Success,
+                None,
+                Some(TimingBucket::from_millis(10)),
+            )
+            .await
+            .unwrap();
+    }
+
+    let events = store.list_diagnostic_events().await.unwrap();
+    assert_eq!(events.len() as i64, DIAGNOSTICS_RETENTION_LIMIT);
+    assert_eq!(events[0].category, "HTTP_REQUEST");
+    assert_eq!(events[0].timing_bucket.as_deref(), Some("UNDER_100MS"));
+}
+
+#[tokio::test]
+async fn clear_diagnostics_removes_every_event() {
+    let store = Store::open_in_memory().await.unwrap();
+    store.set_diagnostics_enabled(true).await.unwrap();
+    store
+        .record_diagnostic_event(
+            DiagnosticCategory::Backup,
+            DiagnosticOutcome::Failure,
+            Some(ApplicationErrorCode::BackupError),
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(store.list_diagnostic_events().await.unwrap().len(), 1);
+    store.clear_diagnostic_events().await.unwrap();
+    assert!(store.list_diagnostic_events().await.unwrap().is_empty());
+}
+
+/// Adversarial redaction check: a collection run whose URL, headers, and body
+/// are stuffed with secret-shaped tokens must never let any of those tokens
+/// reach a diagnostic row, because the schema has no field they could be
+/// written into.
+#[tokio::test]
+async fn diagnostic_events_never_contain_request_content_or_secrets() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/health"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+    let store = Store::open_in_memory().await.unwrap();
+    store.set_diagnostics_enabled(true).await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let mut input = save_input(&collection.id, "Health");
+    input.url = format!("{}/health?token=adversarial-secret-token", server.uri());
+    input.headers = vec![
+        entry("Authorization", "Bearer adversarial-bearer-token"),
+        entry("X-Api-Key", "adversarial-api-key"),
+    ];
+    input.body_mode = "json".to_owned();
+    input.body = "{\"password\":\"hunter2-adversarial\"}".to_owned();
+    store.save_request(input).await.unwrap();
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &SecretStore::new(&temporary),
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let events = store.list_diagnostic_events().await.unwrap();
+    assert!(!events.is_empty());
+    let planted = [
+        "adversarial-secret-token".to_owned(),
+        "adversarial-bearer-token".to_owned(),
+        "adversarial-api-key".to_owned(),
+        "hunter2-adversarial".to_owned(),
+        server.uri(),
+    ];
+    let serialized = serde_json::to_string(&events).unwrap();
+    for token in planted {
+        assert!(
+            !serialized.contains(&token),
+            "diagnostic event leaked {token}"
+        );
+    }
 }

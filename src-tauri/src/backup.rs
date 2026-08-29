@@ -7,6 +7,7 @@
 
 use crate::error::ApplicationError;
 use crate::secrets::SecretStore;
+use crate::store::diagnostics::{DiagnosticCategory, DiagnosticOutcome};
 use crate::store::{latest_schema_version, Store, StoreHandle};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -122,20 +123,22 @@ pub async fn create_workspace_backup(
         .map_err(|_| ApplicationError::backup())?;
     let destination = normalized_backup_path(&selected);
     let _guard = service.lock_data().await;
-    create_backup(
+    let result = create_backup(
         store.get()?,
         secrets.inner(),
         service.directory()?,
         &destination,
     )
-    .await
-    .map(Some)
+    .await;
+    record_diagnostic(store.get().ok(), DiagnosticCategory::Backup, &result).await;
+    result.map(Some)
 }
 
 #[tauri::command]
 pub async fn stage_workspace_restore(
     app: AppHandle,
     service: State<'_, BackupService>,
+    store: State<'_, StoreHandle>,
 ) -> Result<Option<RestoreResult>, ApplicationError> {
     let selected = app
         .dialog()
@@ -149,9 +152,28 @@ pub async fn stage_workspace_restore(
         .into_path()
         .map_err(|_| ApplicationError::invalid_backup())?;
     let _guard = service.lock_data().await;
-    stage_restore_archive(&selected, service.directory()?)
-        .await
-        .map(Some)
+    let result = stage_restore_archive(&selected, service.directory()?).await;
+    record_diagnostic(store.get().ok(), DiagnosticCategory::Restore, &result).await;
+    result.map(Some)
+}
+
+/// Best-effort diagnostic recording shared by backup and restore: a storage
+/// failure here must never affect the command's own result.
+async fn record_diagnostic<T>(
+    store: Option<&Store>,
+    category: DiagnosticCategory,
+    result: &Result<T, ApplicationError>,
+) {
+    let Some(store) = store else {
+        return;
+    };
+    let (outcome, error_code) = match result {
+        Ok(_) => (DiagnosticOutcome::Success, None),
+        Err(error) => (DiagnosticOutcome::Failure, Some(error.code)),
+    };
+    let _ = store
+        .record_diagnostic_event(category, outcome, error_code, None)
+        .await;
 }
 
 async fn create_backup(

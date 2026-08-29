@@ -337,8 +337,12 @@ fn validate_request(input: HttpRequestInput) -> Result<ValidatedRequest, Applica
             .map_err(|_| ApplicationError::invalid_body())?;
     }
     match &input.auth {
-        RequestAuth::Bearer { token } if token.trim().is_empty() => {
-            return Err(ApplicationError::invalid_auth())
+        RequestAuth::Bearer { token } => {
+            if token.trim().is_empty()
+                || HeaderValue::from_str(&format!("Bearer {token}")).is_err()
+            {
+                return Err(ApplicationError::invalid_auth());
+            }
         }
         RequestAuth::Basic { username, .. } if username.trim().is_empty() => {
             return Err(ApplicationError::invalid_auth())
@@ -440,6 +444,17 @@ mod tests {
         let error = validate_request(invalid_header).err().unwrap();
         assert!(matches!(error.code, ApplicationErrorCode::InvalidHeader));
         assert!(!error.message.contains("secret"));
+    }
+
+    #[test]
+    fn rejects_bearer_token_that_is_not_a_valid_header_value() {
+        let mut invalid_token = request("https://example.com".to_owned());
+        invalid_token.auth = RequestAuth::Bearer {
+            token: "secret-token\n".to_owned(),
+        };
+        let error = validate_request(invalid_token).err().unwrap();
+        assert!(matches!(error.code, ApplicationErrorCode::InvalidAuth));
+        assert!(!error.message.contains("secret-token"));
     }
 
     #[tokio::test]

@@ -15,6 +15,7 @@ use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::{Mutex, MutexGuard};
@@ -244,9 +245,11 @@ async fn stage_restore_archive(
     .map_err(|_| ApplicationError::restore())?;
     let pending = app_data_directory.join(PENDING_RESTORE_DIRECTORY);
     if pending.exists() {
-        fs::remove_dir_all(&pending).map_err(|_| ApplicationError::restore())?;
+        retry_transient_fs(|| fs::remove_dir_all(&pending))
+            .map_err(|_| ApplicationError::restore())?;
     }
-    fs::rename(staging.path(), &pending).map_err(|_| ApplicationError::restore())?;
+    retry_transient_fs(|| fs::rename(staging.path(), &pending))
+        .map_err(|_| ApplicationError::restore())?;
     staging.persist();
     let includes_secrets = manifest_has_secrets(&manifest);
     Ok(RestoreResult {
@@ -280,15 +283,17 @@ pub fn rollback_last_restore(app_data_directory: &Path) -> Result<(), Applicatio
     for name in active_file_names() {
         let active = app_data_directory.join(name);
         if active.exists() {
-            fs::remove_file(active).map_err(|_| ApplicationError::restore())?;
+            retry_transient_fs(|| fs::remove_file(&active))
+                .map_err(|_| ApplicationError::restore())?;
         }
     }
     for entry in fs::read_dir(&recovery).map_err(|_| ApplicationError::restore())? {
         let entry = entry.map_err(|_| ApplicationError::restore())?;
         let destination = app_data_directory.join(entry.file_name());
-        fs::rename(entry.path(), destination).map_err(|_| ApplicationError::restore())?;
+        retry_transient_fs(|| fs::rename(entry.path(), &destination))
+            .map_err(|_| ApplicationError::restore())?;
     }
-    fs::remove_dir_all(recovery).map_err(|_| ApplicationError::restore())
+    retry_transient_fs(|| fs::remove_dir_all(&recovery)).map_err(|_| ApplicationError::restore())
 }
 
 fn write_archive(
@@ -322,9 +327,10 @@ fn write_archive(
         return Err(ApplicationError::backup());
     }
     if destination.exists() {
-        fs::remove_file(destination).map_err(|_| ApplicationError::backup())?;
+        retry_transient_fs(|| fs::remove_file(destination))
+            .map_err(|_| ApplicationError::backup())?;
     }
-    if fs::rename(&temporary, destination).is_err() {
+    if retry_transient_fs(|| fs::rename(&temporary, destination)).is_err() {
         let _ = fs::remove_file(&temporary);
         return Err(ApplicationError::backup());
     }
@@ -471,7 +477,8 @@ fn swap_pending_files(
 ) -> Result<(), ApplicationError> {
     let recovery_next = app_data_directory.join("restore-recovery-next");
     if recovery_next.exists() {
-        fs::remove_dir_all(&recovery_next).map_err(|_| ApplicationError::restore())?;
+        retry_transient_fs(|| fs::remove_dir_all(&recovery_next))
+            .map_err(|_| ApplicationError::restore())?;
     }
     fs::create_dir_all(&recovery_next).map_err(|_| ApplicationError::restore())?;
     let restored_names: HashSet<_> = manifest
@@ -482,10 +489,12 @@ fn swap_pending_files(
     for name in [DATABASE_NAME, VAULT_NAME, SALT_NAME] {
         let temporary = app_data_directory.join(format!("{name}.restore-new"));
         if temporary.exists() {
-            fs::remove_file(&temporary).map_err(|_| ApplicationError::restore())?;
+            retry_transient_fs(|| fs::remove_file(&temporary))
+                .map_err(|_| ApplicationError::restore())?;
         }
         if restored_names.contains(name) {
-            fs::copy(pending.join(name), temporary).map_err(|_| ApplicationError::restore())?;
+            retry_transient_fs(|| fs::copy(pending.join(name), &temporary))
+                .map_err(|_| ApplicationError::restore())?;
         }
     }
 
@@ -493,14 +502,14 @@ fn swap_pending_files(
         for name in active_file_names() {
             let active = app_data_directory.join(name);
             if active.exists() {
-                fs::rename(&active, recovery_next.join(name))
+                retry_transient_fs(|| fs::rename(&active, recovery_next.join(name)))
                     .map_err(|_| ApplicationError::restore())?;
             }
         }
         for name in [DATABASE_NAME, VAULT_NAME, SALT_NAME] {
             let temporary = app_data_directory.join(format!("{name}.restore-new"));
             if temporary.exists() {
-                fs::rename(temporary, app_data_directory.join(name))
+                retry_transient_fs(|| fs::rename(&temporary, app_data_directory.join(name)))
                     .map_err(|_| ApplicationError::restore())?;
             }
         }
@@ -528,10 +537,12 @@ fn swap_pending_files(
 
     let recovery = app_data_directory.join(RECOVERY_DIRECTORY);
     if recovery.exists() {
-        fs::remove_dir_all(&recovery).map_err(|_| ApplicationError::restore())?;
+        retry_transient_fs(|| fs::remove_dir_all(&recovery))
+            .map_err(|_| ApplicationError::restore())?;
     }
-    fs::rename(&recovery_next, recovery).map_err(|_| ApplicationError::restore())?;
-    fs::remove_dir_all(pending).map_err(|_| ApplicationError::restore())?;
+    retry_transient_fs(|| fs::rename(&recovery_next, &recovery))
+        .map_err(|_| ApplicationError::restore())?;
+    retry_transient_fs(|| fs::remove_dir_all(pending)).map_err(|_| ApplicationError::restore())?;
     Ok(())
 }
 
@@ -547,6 +558,30 @@ fn active_file_names() -> [&'static str; 5] {
 
 fn manifest_has_secrets(manifest: &BackupManifest) -> bool {
     manifest.files.iter().any(|file| file.name == VAULT_NAME)
+}
+
+/// Windows can transiently deny a rename, copy, or delete immediately after a
+/// file in that tree was just written or read closed its handle — real-time
+/// antivirus scanning can briefly hold its own handle on a fresh file. This
+/// has been observed to intermittently fail the backup/restore round trip on
+/// Windows CI runners with no retry; retry a few times with a short backoff
+/// before treating the failure as real.
+fn retry_transient_fs<T>(mut operation: impl FnMut() -> io::Result<T>) -> io::Result<T> {
+    const ATTEMPTS: u32 = 5;
+    const DELAY: Duration = Duration::from_millis(50);
+    let mut last_error = None;
+    for attempt in 0..ATTEMPTS {
+        match operation() {
+            Ok(value) => return Ok(value),
+            Err(error) => {
+                last_error = Some(error);
+                if attempt + 1 < ATTEMPTS {
+                    std::thread::sleep(DELAY);
+                }
+            }
+        }
+    }
+    Err(last_error.expect("the loop runs at least once"))
 }
 
 fn file_record(path: &Path) -> io::Result<BackupFile> {

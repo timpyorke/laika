@@ -397,7 +397,8 @@ pnpm tauri build
 
 Continue Phase 7 with performance baselines for history, database operations,
 and large responses, then design opt-in diagnostics that cannot collect
-sensitive request data.
+sensitive request data. The detailed delivery order, acceptance criteria, and
+release dependencies are in [next-roadmap.md](next-roadmap.md).
 
 ## Scope Control
 

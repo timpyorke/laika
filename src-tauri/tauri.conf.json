@@ -14,7 +14,8 @@
       {
         "title": "Laika",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "backgroundColor": "#05283a"
       }
     ],
     "security": {

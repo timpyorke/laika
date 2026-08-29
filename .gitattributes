@@ -1,0 +1,8 @@
+# sqlx hashes each migration file byte-for-byte and refuses to run
+# (VersionMismatch) if an already-applied migration's checksum no longer
+# matches what was recorded in `_sqlx_migrations`. Without this, Windows
+# checkouts can silently flip these files between LF and CRLF depending on
+# core.autocrlf and checkout history, corrupting the recorded checksum and
+# permanently disabling the local database. Pin them to LF so the bytes never
+# drift across platforms or checkouts.
+src-tauri/migrations/*.sql text eol=lf

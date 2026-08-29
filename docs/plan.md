@@ -33,6 +33,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Complete |
 | 6 | API Testing | Users can create assertions and run test cases | Complete |
 | 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | In Progress |
+| 8 | Request Chaining and Discovery | Requests can depend on each other's output and users can find things faster | Not Started |
 
 Checklist convention:
 
@@ -399,6 +400,53 @@ Goal: Prepare the app for distribution and long-term maintenance.
   [release-checklist.md](release-checklist.md). The script itself is written,
   but has not yet been executed on a clean VM for a release candidate — that
   remains open under the Phase 7 definition of done.
+
+## Phase 8: Request Chaining and Discovery
+
+Goal: Extend everyday API workflows so requests can depend on each other's
+output and users can find saved work faster, building directly on the
+environment/variable system (Phase 4) and the collection runner (Phase 6)
+rather than opening any of the areas the Scope Control section still defers.
+
+### Checklist
+
+- [ ] Add response-to-variable extraction: capture a JSON path, header, or
+      status code from a response and write it into an environment or
+      workspace variable.
+- [ ] Support that extraction inside a collection run, so a later request in
+      the run can resolve a variable an earlier request just set.
+- [ ] Show unresolved or stale chained variables before a run continues,
+      consistent with the existing unresolved-variable safeguard.
+- [ ] Add response diffing: compare the current response against the most
+      recent history entry for the same request (status, headers, body).
+- [ ] Import OpenAPI 3.x and Swagger 2.0 specifications into a new collection,
+      mapping paths and operations to folders and requests.
+- [ ] Add a keyboard-driven command palette (Ctrl/Cmd+K) for jumping to saved
+      requests, switching environments, and running common actions.
+- [ ] Extend assertions (Phase 6) so a test can reference a variable set by
+      chaining, where that is useful for test authoring.
+
+### Definition of Done
+
+- [ ] A collection run can pass a value extracted from one request's response
+      into a later request's URL, headers, or body via a variable.
+- [ ] Chained secret-marked variables follow the same masking and redaction
+      rules as manually entered secrets.
+- [ ] Response diffing highlights additions, removals, and changes between
+      the current and previous response for the same request.
+- [ ] OpenAPI import produces a collection whose structure and non-secret
+      request data can be reopened and edited like any other saved request.
+- [ ] The command palette can complete the compose/find/switch workflow
+      without the mouse.
+- [ ] `pnpm build`, `pnpm test`, `cargo fmt`, `cargo clippy`, and
+      `cargo test` all pass with the new functionality.
+
+### Scope Note
+
+This phase does not revisit the Scope Control list below. Cloud sync, team
+collaboration, a plugin marketplace, GraphQL/gRPC/WebSocket clients, a full
+scripting runtime, and a CLI remain deferred until there is real usage
+feedback on the local REST workflow to reassess them against.
 
 ## Cross-Phase Quality Gates
 

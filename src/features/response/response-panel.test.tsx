@@ -20,7 +20,7 @@ describe("ResponsePanel states", () => {
   it("shows progress while a request is running", () => {
     useAppStore.setState({ isSending: true, activeRequestId: "request-1" });
     render(<ResponsePanel />);
-    expect(screen.getByText("Waiting for response")).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for response/)).toBeInTheDocument();
   });
 
   it.each([

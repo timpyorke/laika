@@ -147,6 +147,11 @@ Separate components by role:
 
 Components should receive data through props and emit events. When data transformation, validation, or asynchronous orchestration grows substantial, move it into the feature's hook, model, or service.
 
+Visual decisions — palette, typography, density, and the shared primitives that
+carry them — are governed by [`design-system.md`](./design-system.md). Colours
+come from CSS custom properties defined in `src/App.css`; never hard-code a hex
+value in a component.
+
 ### 5.2 State Ownership
 
 Use the narrowest state scope that satisfies the requirement:

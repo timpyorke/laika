@@ -162,7 +162,9 @@ function updateActiveDraft(state: AppState, draft: RequestDraft, dirty = true) {
 const initialDraft = newDraft();
 
 export const useAppStore = create<AppState>((set, get) => ({
-  theme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+  // Dark is Laika's default; the light "paper" theme is opt-in, and an explicit
+  // OS light preference is still honoured on first launch.
+  theme: window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
   draft: initialDraft,
   requestTab: "params",
   responseTab: "body",

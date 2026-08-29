@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-load-workspace-tree"
+description = "Enables the load_workspace_tree command without any pre-configured scope."
+commands.allow = ["load_workspace_tree"]
+
+[[permission]]
+identifier = "deny-load-workspace-tree"
+description = "Denies the load_workspace_tree command without any pre-configured scope."
+commands.deny = ["load_workspace_tree"]

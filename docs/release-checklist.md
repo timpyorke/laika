@@ -1,7 +1,7 @@
 # Release Checklist
 
 Use this checklist for every Laika release candidate. The release foundation
-and recovery workflow are implemented; unchecked signing, updater, security,
+and recovery workflow are implemented; unchecked signing, updater, diagnostics,
 and clean-machine validation remain publication blockers.
 
 ## Release candidate
@@ -16,6 +16,9 @@ and clean-machine validation remain publication blockers.
 
 - [ ] `pnpm build` passes.
 - [ ] `pnpm test` passes.
+- [ ] `pnpm security:check` passes.
+- [ ] `pnpm audit --audit-level moderate` passes.
+- [ ] `cargo audit --file src-tauri/Cargo.lock` passes with only documented exceptions.
 - [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml --check` passes.
 - [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` passes.
 - [ ] `cargo test --manifest-path src-tauri/Cargo.toml` passes.
@@ -28,8 +31,9 @@ and clean-machine validation remain publication blockers.
 - [ ] Confirm a corrupt or incompatible backup is rejected without changing the
       active workspace.
 - [ ] Exercise an upgrade from the previous stable version without data loss.
-- [ ] Complete the security and privacy review, including CSP, permissions,
-      dependency audit, diagnostics, and secret redaction.
+- [x] Complete the security and privacy review, including CSP, permissions,
+      dependency audit, logging, clipboard handling, and secret redaction.
+- [ ] Validate opt-in diagnostics separately before enabling any collection.
 - [ ] Review dependency changes and unresolved security advisories.
 
 ## Distribution artifacts

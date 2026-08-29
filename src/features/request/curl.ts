@@ -1,16 +1,21 @@
 import type { BodyMode, HttpMethod, KeyValueEntry, RequestDraft } from "../../types/http";
 
-const sensitiveHeaders = new Set(["authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key"]);
+const sensitiveKeys = new Set(["authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key", "api-key", "apikey", "access-token", "refresh-token", "client-secret", "password", "passwd", "token", "secret"]);
+const isSensitiveKey = (key: string) => {
+  const normalized = key.trim().toLowerCase().replace(/_/g, "-");
+  return sensitiveKeys.has(normalized) || ["-password", "-secret", "-token", "-api-key"].some((suffix) => normalized.endsWith(suffix));
+};
+const redactedValue = (key: string, value: string) => isSensitiveKey(key) ? "{{secret}}" : value;
 const shellQuote = (value: string) => `'${value.split("'").join(`'"'"'`)}'`;
 const row = (key = "", value = ""): KeyValueEntry => ({ id: crypto.randomUUID(), enabled: true, key, value });
 
 export function generateCurl(draft: RequestDraft): string {
   const enabledParams = draft.params.filter((item) => item.enabled && item.key.trim());
-  const query = enabledParams.map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`).join("&");
+  const query = enabledParams.map((item) => `${encodeURIComponent(item.key)}=${encodeURIComponent(redactedValue(item.key, item.value))}`).join("&");
   const url = query ? `${draft.url}${draft.url.includes("?") ? "&" : "?"}${query}` : draft.url;
   const parts = ["curl", "--request", draft.method, shellQuote(url || "https://api.example.com")];
   for (const header of draft.headers.filter((item) => item.enabled && item.key.trim())) {
-    const value = sensitiveHeaders.has(header.key.trim().toLowerCase()) ? "{{secret}}" : header.value;
+    const value = redactedValue(header.key, header.value);
     parts.push("--header", shellQuote(`${header.key}: ${value}`));
   }
   if (draft.auth.type === "bearer") parts.push("--header", shellQuote("Authorization: Bearer {{token}}"));
@@ -18,7 +23,7 @@ export function generateCurl(draft: RequestDraft): string {
   if (draft.bodyMode === "json") parts.push("--header", shellQuote("Content-Type: application/json"), "--data-raw", shellQuote(draft.body));
   if (draft.bodyMode === "text") parts.push("--data-raw", shellQuote(draft.body));
   if (draft.bodyMode === "form") {
-    for (const field of draft.form.filter((item) => item.enabled && item.key.trim())) parts.push("--data-urlencode", shellQuote(`${field.key}=${field.value}`));
+    for (const field of draft.form.filter((item) => item.enabled && item.key.trim())) parts.push("--data-urlencode", shellQuote(`${field.key}=${redactedValue(field.key, field.value)}`));
   }
   return parts.join(" \\\n  ");
 }

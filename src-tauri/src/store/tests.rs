@@ -369,8 +369,11 @@ async fn never_persists_authentication_secrets() {
     input.headers = vec![
         entry("Authorization", "Bearer super-secret"),
         entry("Cookie", "session=super-secret"),
+        entry("X-Client-Secret", "super-secret"),
         entry("Accept", "application/json"),
     ];
+    input.params = vec![entry("api_key", "super-secret"), entry("page", "2")];
+    input.form = vec![entry("access_token", "super-secret")];
     input.auth = AuthRecord::Basic {
         username: "laika".to_owned(),
     };
@@ -379,11 +382,15 @@ async fn never_persists_authentication_secrets() {
     assert_eq!(saved.headers[0].key, "Authorization");
     assert_eq!(saved.headers[0].value, "");
     assert_eq!(saved.headers[1].value, "");
-    assert_eq!(saved.headers[2].value, "application/json");
+    assert_eq!(saved.headers[2].value, "");
+    assert_eq!(saved.headers[3].value, "application/json");
+    assert_eq!(saved.params[0].value, "");
+    assert_eq!(saved.params[1].value, "2");
+    assert_eq!(saved.form[0].value, "");
     assert!(matches!(saved.auth, AuthRecord::Basic { ref username } if username == "laika"));
 
     let stored: String =
-        sqlx::query_scalar("SELECT group_concat(headers_json || auth_username) FROM saved_request")
+        sqlx::query_scalar("SELECT group_concat(headers_json || params_json || form_json || auth_username) FROM saved_request")
             .fetch_one(&store.pool)
             .await
             .unwrap();

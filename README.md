@@ -7,8 +7,8 @@ The product direction is similar to a lightweight API workspace: start with a re
 ## Current Status
 
 Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 release
-readiness is in progress, with the release foundation and workspace recovery
-workflow implemented.
+readiness is in progress, with the release foundation, workspace recovery, and
+security/privacy review implemented.
 
 Implemented:
 
@@ -42,11 +42,13 @@ Implemented:
 - A release checklist that makes the remaining publication blockers explicit
 - Verified whole-workspace `.laika-backup` archives with encrypted-vault support,
   staged restart-safe restore, rollback retention, and pre-migration recovery
+- Production CSP and a least-privilege Tauri command allowlist, automated
+  dependency audits, expanded credential redaction, and timed secret clipboard clearing
 
 Not implemented yet:
 
 - Windows code signing and updater release channels
-- Final security, privacy, performance, and diagnostics work
+- Performance baselines and opt-in privacy-safe diagnostics
 - Clean-machine release validation and complete user documentation
 - A scripting runtime and CLI companion
 
@@ -144,6 +146,13 @@ Run the frontend tests:
 pnpm test
 ```
 
+Run the security configuration and frontend dependency audits:
+
+```bash
+pnpm security:check
+pnpm audit --audit-level moderate
+```
+
 Verify or update the application version:
 
 ```bash
@@ -157,6 +166,7 @@ Run the Rust checks:
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
+cargo audit --file src-tauri/Cargo.lock
 ```
 
 Build the desktop app and installers:
@@ -209,6 +219,9 @@ encrypted and require the original vault master password.
 
 See [docs/backup-and-recovery.md](docs/backup-and-recovery.md) for the workflow,
 recovery behavior, and backup format contract.
+
+See [docs/security-and-privacy.md](docs/security-and-privacy.md) for the trust
+boundaries, secret flows, implemented controls, and residual risks.
 
 ## Roadmap
 

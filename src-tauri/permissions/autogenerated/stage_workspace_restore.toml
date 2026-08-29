@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stage-workspace-restore"
+description = "Enables the stage_workspace_restore command without any pre-configured scope."
+commands.allow = ["stage_workspace_restore"]
+
+[[permission]]
+identifier = "deny-stage-workspace-restore"
+description = "Denies the stage_workspace_restore command without any pre-configured scope."
+commands.deny = ["stage_workspace_restore"]

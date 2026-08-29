@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { normalizeApplicationError } from "../../lib/application-error";
+import { copySensitiveText } from "../../lib/sensitive-clipboard";
 import { useAppStore } from "../../store/use-app-store";
 import type { EnvironmentVariable } from "../../types/environment";
 import * as client from "./environment-client";
@@ -31,8 +32,8 @@ function VariableRow({ variable }: { variable: EnvironmentVariable }) {
   const copy = async () => {
     try {
       const secretValue = revealed ?? await client.revealEnvironmentVariable(variable.id);
-      await navigator.clipboard.writeText(secretValue);
-      toast.success("Secret copied");
+      await copySensitiveText(secretValue);
+      toast.success("Secret copied for 30 seconds");
     } catch (error) {
       const normalized = normalizeApplicationError(error);
       toast.error(normalized.title, { description: normalized.message });

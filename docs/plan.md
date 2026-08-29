@@ -322,7 +322,7 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [ ] Add an updater strategy and release channels.
 - [x] Create CI for frontend checks, Rust tests, and Tauri builds.
 - [x] Add backup/restore and database recovery workflows.
-- [ ] Review security: secret handling, command permissions, CSP, and dependency auditing.
+- [x] Review security: secret handling, command permissions, CSP, and dependency auditing.
 - [ ] Add performance tests for history/database operations and large responses.
 - [ ] Add opt-in crash/error diagnostics with no sensitive data.
 - [x] Write a release checklist.
@@ -359,18 +359,28 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - Existing databases receive a `VACUUM INTO` recovery snapshot before a pending
   migration. Automated tests cover backup/restore with secrets, invalid archive
   rejection, and version-one migration recovery.
+- Production CSP restricts the bundled webview to local assets and Tauri IPC.
+  The main window receives only a generated allowlist of registered application
+  commands; broad core and unused opener permissions were removed.
+- Secret-bearing inputs avoid diagnostic formatting, temporary secret buffers
+  are zeroized across fallible operations, generic render errors omit details,
+  and copied secrets are cleared after 30 seconds when unchanged.
+- Credential-key redaction now covers headers, query parameters, form fields,
+  cURL snippets, history, and saved/exported requests. CI validates permission
+  drift and audits both frontend and Rust dependencies. The full threat model
+  and residual risks are in [security-and-privacy.md](security-and-privacy.md).
 
 ## Cross-Phase Quality Gates
 
 Use this checklist to close the active phase, then reset it when the next phase begins:
 
-- [ ] Frontend: type checking and the production build pass.
-- [ ] Rust: formatting, linting, and tests pass.
-- [ ] Contract: frontend/backend payloads have validation and any required backward compatibility.
-- [ ] UX: loading, empty, success, and error states are complete.
-- [ ] Security: secrets do not enter logs, history, or error payloads.
-- [ ] Data: schema changes include migration and recovery considerations.
-- [ ] Documentation: the README and this plan are updated when scope or status changes.
+- [x] Frontend: type checking and the production build pass.
+- [x] Rust: formatting, linting, and tests pass.
+- [x] Contract: frontend/backend payloads have validation and any required backward compatibility.
+- [x] UX: loading, empty, success, and error states are complete.
+- [x] Security: secrets do not enter logs, history, or error payloads.
+- [x] Data: schema changes include migration and recovery considerations.
+- [x] Documentation: the README and this plan are updated when scope or status changes.
 
 ## Suggested Commands
 
@@ -385,9 +395,9 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Continue Phase 7 with the security and privacy review: lock down CSP and command
-permissions, audit dependencies and redaction boundaries, then establish
-diagnostics and performance baselines.
+Continue Phase 7 with performance baselines for history, database operations,
+and large responses, then design opt-in diagnostics that cannot collect
+sensitive request data.
 
 ## Scope Control
 

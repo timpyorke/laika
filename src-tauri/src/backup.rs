@@ -643,6 +643,8 @@ mod tests {
         assert!(target.join(RECOVERY_DIRECTORY).join(DATABASE_NAME).exists());
         restored.close().await;
         restored_secrets.lock().unwrap();
+        drop(restored_secrets);
+        drop(secrets);
         fs::remove_dir_all(root).unwrap();
     }
 

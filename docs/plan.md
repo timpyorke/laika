@@ -318,8 +318,8 @@ Goal: Prepare the app for distribution and long-term maintenance.
 ### Checklist
 
 - [x] Configure production app metadata, icons, versioning, and bundle identifiers.
-- [ ] Add code signing for the Windows installer.
-- [ ] Add an updater strategy and release channels.
+- [x] Add code signing for the Windows installer.
+- [x] Add an updater strategy and release channels.
 - [x] Create CI for frontend checks, Rust tests, and Tauri builds.
 - [x] Add backup/restore and database recovery workflows.
 - [x] Review security: secret handling, command permissions, CSP, and dependency auditing.
@@ -344,12 +344,20 @@ Goal: Prepare the app for distribution and long-term maintenance.
   and Rust package. `pnpm version:set` updates all three manifests and
   `pnpm version:check` prevents inconsistent release artifacts.
 - GitHub Actions runs the frontend build and tests plus Rust formatting, linting,
-  and tests on Windows, then creates unsigned NSIS and MSI validation artifacts
-  tied to the source commit SHA. Signing and release publishing remain deferred
-  until the certificate and update-channel strategy are selected.
-- The release checklist documents the current publication blockers, including
-  security review, signing, updater validation, and clean-machine upgrade
-  testing.
+  and tests on Windows via the shared `build-windows.yml` reusable workflow,
+  then creates unsigned NSIS and MSI validation artifacts tied to the source
+  commit SHA on every push and pull request (`ci.yml`).
+- Pushing a `v<version>` tag runs `release.yml`: the same reusable build,
+  then SignPath-based code signing behind a protected `release` GitHub
+  Environment, SHA-256 checksums, and a draft GitHub Release. The decision
+  record — SignPath for signing, GitHub Releases as the host, no in-app
+  updater until this pipeline is validated, stable channel only for now —
+  and the one-time SignPath/GitHub setup are in
+  [signing-and-release.md](signing-and-release.md). The workflow has not yet
+  been exercised against a real SignPath project; that is the remaining
+  Phase 7 signing risk.
+- The release checklist documents the current publication blockers, mainly
+  clean-machine validation against an actual signed build.
 - Settings can create a versioned `.laika-backup` containing a consistent
   SQLite snapshot and, when initialized, the encrypted Stronghold snapshot and
   salt as one compatible set. The manifest records sizes and SHA-256 checksums.

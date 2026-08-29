@@ -1,8 +1,11 @@
 # Release Checklist
 
 Use this checklist for every Laika release candidate. The release foundation,
-recovery workflow, and opt-in diagnostics are implemented; unchecked signing,
-updater, and clean-machine validation remain publication blockers.
+recovery workflow, opt-in diagnostics, and the signing/publish workflow are
+implemented (see [signing-and-release.md](signing-and-release.md)); clean-
+machine validation on a real signed build remains the publication blocker.
+There is no in-app updater by design for the first releases — see the
+Phase 7G decisions in [next-roadmap.md](next-roadmap.md).
 
 ## Release candidate
 
@@ -47,11 +50,23 @@ updater, and clean-machine validation remain publication blockers.
 
 ## Distribution artifacts
 
-- [ ] Build NSIS and MSI installers from the exact release commit.
-- [ ] Sign the executable and installers with the approved Windows certificate.
-- [ ] Record SHA-256 checksums and the source commit SHA.
-- [ ] Verify the publisher, product name, version, and icon in file properties.
-- [ ] Verify updater metadata and the intended stable or prerelease channel.
+Pushing the release tag runs `.github/workflows/release.yml`, which builds,
+signs via SignPath, computes checksums, and opens a draft GitHub Release
+automatically — see [signing-and-release.md](signing-and-release.md) for the
+full procedure and the one-time setup it depends on.
+
+- [ ] `check-tag` confirmed the pushed tag matches the release version.
+- [ ] The `release` environment deployment was reviewed and approved before
+      signing ran.
+- [ ] Signed NSIS and MSI installers and `SHA256SUMS.txt` are attached to the
+      draft release.
+- [ ] Checksums were verified locally against the downloaded files.
+- [ ] The Authenticode signature is present and valid on each installer and
+      on `laika.exe`.
+- [ ] Publisher, product name, version, and icon are correct in file
+      properties.
+- [ ] The release is published as stable (not prerelease) — no beta channel
+      exists yet.
 
 ## Clean-machine validation
 
@@ -77,7 +92,12 @@ any deviation.
 
 ## Documentation and publication
 
-- [ ] Update the README, user documentation, changelog, and known issues.
-- [ ] Publish immutable artifacts and checksums for the matching `v<version>` tag.
-- [ ] Verify download links and updater metadata after publication.
-- [ ] Record rollback instructions and retain the previous stable artifacts.
+- [ ] Update the README, user documentation, and known issues.
+- [ ] Review and edit the release's auto-generated notes before publishing.
+- [ ] Publish the draft release (immutable once published; do not delete a
+      published tag or release — ship a new patch release instead).
+- [ ] Verify the GitHub Releases download links work after publication.
+- [ ] Rollback instructions are in
+      [signing-and-release.md](signing-and-release.md#rollback); confirm the
+      previous stable release's artifacts are still available for users who
+      need to revert.

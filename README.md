@@ -8,8 +8,8 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 release
 readiness is in progress, with the release foundation, workspace recovery,
-security/privacy review, performance baselines, and opt-in diagnostics
-implemented.
+security/privacy review, performance baselines, opt-in diagnostics, and a
+code-signing/publish workflow implemented.
 
 New to Laika? Start with [docs/quick-start.md](docs/quick-start.md).
 
@@ -51,10 +51,15 @@ Implemented:
   large responses, cancellation, and process memory
 - Opt-in, local-only diagnostics with an allowlisted event schema and an
   explicit export action — never a URL, header, body, or secret
+- A tag-triggered release workflow that builds, code-signs via SignPath, and
+  opens a draft GitHub Release with checksums, gated behind a protected
+  environment — see [docs/signing-and-release.md](docs/signing-and-release.md)
 
 Not implemented yet:
 
-- Windows code signing and updater release channels
+- A validated live signing run (SignPath integration is implemented but not
+  yet exercised against a real approved SignPath project) and an in-app
+  updater, deferred until the signed pipeline is proven
 - Clean-machine release validation on real VMs (the script to run it exists;
   see [docs/smoke-test.md](docs/smoke-test.md))
 - A scripting runtime and CLI companion
@@ -258,6 +263,8 @@ boundaries, secret flows, implemented controls, and residual risks.
 - [docs/versioning.md](docs/versioning.md) and
   [docs/release-checklist.md](docs/release-checklist.md) — release identity,
   versioning policy, and the publication checklist.
+- [docs/signing-and-release.md](docs/signing-and-release.md) — code-signing
+  setup and the tag-to-published-release procedure.
 - [docs/performance.md](docs/performance.md) — baselines and budgets.
 
 ## Roadmap

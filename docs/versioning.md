@@ -39,8 +39,18 @@ published version number for different binaries.
 
 ## Build provenance
 
-The CI workflow builds an unsigned Windows executable, NSIS installer, and MSI
-installer for every pull request and push to `main`. The artifact name includes
-the source commit SHA and is retained for 14 days. These artifacts are for
-validation until code signing and release publishing are implemented later in
-Phase 7.
+CI (`.github/workflows/ci.yml`) builds an unsigned Windows executable, NSIS
+installer, and MSI installer for every pull request and push to `main`, via
+the shared `.github/workflows/build-windows.yml` reusable workflow. The
+artifact name includes the source commit SHA and is retained for 14 days.
+These CI artifacts remain validation-only, not release artifacts.
+
+## Tagging a release
+
+Pushing a `v<version>` tag (for example `v0.2.0`) triggers
+`.github/workflows/release.yml`, which runs the same build via
+`build-windows.yml`, submits it for code signing, and publishes a draft
+GitHub Release. The tag must exactly match `package.json`'s version or the
+workflow fails before building. See
+[signing-and-release.md](signing-and-release.md) for the full procedure,
+the one-time SignPath/GitHub setup it depends on, and rollback guidance.

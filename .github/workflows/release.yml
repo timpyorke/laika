@@ -1,0 +1,117 @@
+name: Release
+
+# Never add `pull_request` here: signing secrets in the `release` environment
+# below must stay unreachable from a pull-request-triggered run.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-tag:
+    name: Verify tag matches release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Confirm tag matches package.json version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(node -p "require('./package.json').version")
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version $version. Run pnpm version:set and re-tag."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches package.json version $version."
+
+  build:
+    name: Quality gates and Windows bundle
+    needs: check-tag
+    uses: ./.github/workflows/build-windows.yml
+
+  # Signing and publishing run under the `release` GitHub Environment, which
+  # must be configured with required-reviewer protection so a signing
+  # request can never fire without an explicit approval, and the SignPath
+  # secret/variables are scoped only to this environment. See
+  # docs/signing-and-release.md for the one-time SignPath and GitHub setup
+  # this job depends on, and for the exact inputs to double-check the first
+  # time this runs against a real SignPath project.
+  sign-and-publish:
+    name: Sign installers and publish a draft release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve unsigned artifact ID
+        id: unsigned-artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const name = "${{ needs.build.outputs.artifact-name }}";
+            const artifact = data.artifacts.find((item) => item.name === name);
+            if (!artifact) {
+              throw new Error(`Unsigned build artifact "${name}" was not found in this run.`);
+            }
+            core.setOutput("id", artifact.id);
+
+      # SignPath signs every exe/msi file inside the unsigned artifact
+      # according to the Artifact Configuration created on signpath.io, and
+      # returns a signed copy of the same artifact layout.
+      - name: Submit SignPath signing request
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-artifact.outputs.id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Compute checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd signed
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish draft GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" signed/* \
+            --title "Laika ${GITHUB_REF_NAME}" \
+            --draft \
+            --generate-notes
+
+# A draft is intentional: a maintainer must review the signed artifacts and
+# verify SHA256SUMS.txt locally before selecting "Publish release" in the
+# GitHub UI. See docs/signing-and-release.md for that review checklist.

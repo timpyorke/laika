@@ -6,11 +6,14 @@ the deferred CLI, scripting, or additional protocol clients.
 
 ## Current Status
 
-Phase 7E privacy-safe diagnostics were completed on 2026-08-29. Phase 7F's
-documentation deliverables (quick start, known limitations/recovery, and the
-smoke-test script) were completed the same day; running that script on a
-clean Windows VM for an actual release candidate is still open. 7G's
-distribution decisions can proceed in parallel with that VM validation.
+Phase 7E privacy-safe diagnostics, 7F's documentation deliverables (quick
+start, known limitations/recovery, and the smoke-test script), and 7G's
+signing/release workflow were all completed on 2026-08-29. Two things remain
+open before Phase 7's definition of done is met: running the smoke-test
+script on a clean Windows VM, and validating the signing workflow against a
+real SignPath project on an actual tagged release — see
+[signing-and-release.md](signing-and-release.md#-unverified-against-a-live-signpath-project).
+The recommended next task is 7H once both are done.
 
 ### Completed 7D Scope
 
@@ -100,23 +103,29 @@ Phase 7's definition of done is met.
 
 ### 7G. Signing and Update Channel
 
-**Outcome:** Release artifacts are trusted, traceable, and can be upgraded
-without workspace loss.
+**Status: Workflow implemented; unverified against a live SignPath project.**
+Release artifacts are trusted and traceable once a real signed release has
+been produced and checked. Decisions made:
 
-Before implementation, decide:
+- **Signing:** SignPath.io's free open-source tier.
+- **Release host:** GitHub Releases.
+- **Channels:** stable only; no prerelease/beta channel yet.
+- **Updater:** none in the first releases — ship signed installers only,
+  and add an in-app updater once this signed pipeline is proven.
 
-- code-signing certificate/provider and how CI receives signing access;
-- release host and whether GitHub Releases is the canonical artifact source;
-- stable versus prerelease channels and rollout/rollback policy;
-- whether the first public build ships with automatic checks, manual checks, or
-  no updater until a signed upgrade path has been validated.
+`.github/workflows/release.yml` (triggered on a `v*` tag push) builds via the
+shared `build-windows.yml` reusable workflow, submits the artifact to
+SignPath from behind a protected `release` GitHub Environment, generates
+`SHA256SUMS.txt`, and opens a draft GitHub Release. See
+[signing-and-release.md](signing-and-release.md) for the one-time SignPath
+and GitHub setup this depends on, the full cutting-a-release procedure, and
+rollback guidance. The workflow's SignPath action inputs have not been
+exercised against a real approved SignPath project yet — that happens on the
+first real tagged release.
 
-Then implement signing in the release workflow, generate checksums and updater
-metadata from the exact tagged commit, verify signatures after download, and
-exercise update and rollback on a clean VM. Secrets must use protected CI
-environments and must never be available to pull-request jobs.
-
-**Depends on:** Distribution decisions and access to signing credentials.
+**Depends on:** A maintainer completing SignPath's OSS-program approval and
+the one-time GitHub Environment/secret setup in
+[signing-and-release.md](signing-and-release.md).
 
 ### 7H. Release Candidate and Publication
 
@@ -125,27 +134,30 @@ published with confidence.
 
 1. Freeze scope and set the release version.
 2. Run all local and CI quality, security, performance, and recovery gates.
-3. Complete NSIS/MSI clean-machine and previous-version upgrade tests.
-4. Publish signed immutable artifacts, checksums, release notes, known issues,
-   updater metadata, and rollback instructions.
-5. Verify downloads, signatures, updater behavior, and support documentation.
-6. Mark Phase 7 complete only when every Definition of Done item passes.
+3. Complete the SignPath and GitHub one-time setup from
+   [signing-and-release.md](signing-and-release.md), then cut the release by
+   tagging and pushing — this is also the first live validation of the
+   signing workflow itself.
+4. Complete NSIS/MSI clean-machine and previous-version upgrade tests
+   ([smoke-test.md](smoke-test.md)) against the signed artifacts.
+5. Publish the reviewed draft release: signed immutable artifacts, checksums,
+   release notes, and known issues.
+6. Verify downloads and signatures after publication.
+7. Mark Phase 7 complete only when every Definition of Done item passes.
 
 ## Priority and Parallelism
 
-| Priority | Workstream | Can start now | Main blocker |
-| --- | --- | --- | --- |
-| P0 | 7D Performance baselines | Yes | None |
-| P0 | 7E Diagnostics design | After event vocabulary from 7D | Privacy review |
-| P0 | 7F User docs and VM test plan | Yes | Final UX details |
-| P0 | 7G Signing/updater decisions | Yes | Product decisions and certificate |
-| P1 | 7G Signing/updater implementation | No | Decisions and credentials |
-| P1 | 7H Release candidate | No | 7D-7G complete |
+| Priority | Workstream | Status |
+| --- | --- | --- |
+| Done | 7D Performance baselines | Complete |
+| Done | 7E Privacy-safe diagnostics | Complete |
+| Done | 7F User documentation | Complete; VM run pending |
+| Done | 7G Signing/release workflow | Complete; live SignPath run pending |
+| P0 | 7H Release candidate | Blocked on the two pending validations above |
 
-Performance work is the critical technical path. Documentation and the
-distribution decision record can proceed in parallel, but release automation
-must not handle real signing credentials until the threat model and protected
-CI environment are approved.
+The remaining work is entirely validation, not implementation: run
+[smoke-test.md](smoke-test.md) on a clean VM, and complete SignPath's OSS
+approval so the release workflow can be exercised for real.
 
 ## Deferred Until After the First Release
 

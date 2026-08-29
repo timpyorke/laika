@@ -321,7 +321,7 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [ ] Add code signing for the Windows installer.
 - [ ] Add an updater strategy and release channels.
 - [x] Create CI for frontend checks, Rust tests, and Tauri builds.
-- [ ] Add backup/restore and database recovery workflows.
+- [x] Add backup/restore and database recovery workflows.
 - [ ] Review security: secret handling, command permissions, CSP, and dependency auditing.
 - [ ] Add performance tests for history/database operations and large responses.
 - [ ] Add opt-in crash/error diagnostics with no sensitive data.
@@ -348,8 +348,17 @@ Goal: Prepare the app for distribution and long-term maintenance.
   tied to the source commit SHA. Signing and release publishing remain deferred
   until the certificate and update-channel strategy are selected.
 - The release checklist documents the current publication blockers, including
-  backup/restore, security review, signing, updater validation, and clean-machine
-  upgrade testing.
+  security review, signing, updater validation, and clean-machine upgrade
+  testing.
+- Settings can create a versioned `.laika-backup` containing a consistent
+  SQLite snapshot and, when initialized, the encrypted Stronghold snapshot and
+  salt as one compatible set. The manifest records sizes and SHA-256 checksums.
+- Restore validates archive structure, checksums, database integrity, and schema
+  compatibility before staging. Files are swapped before storage opens on the
+  next launch, while the current workspace is retained for rollback.
+- Existing databases receive a `VACUUM INTO` recovery snapshot before a pending
+  migration. Automated tests cover backup/restore with secrets, invalid archive
+  rejection, and version-one migration recovery.
 
 ## Cross-Phase Quality Gates
 
@@ -376,8 +385,9 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Continue Phase 7 with coordinated backup/restore and database recovery before
-locking down CSP, dependency auditing, diagnostics, and performance baselines.
+Continue Phase 7 with the security and privacy review: lock down CSP and command
+permissions, audit dependencies and redaction boundaries, then establish
+diagnostics and performance baselines.
 
 ## Scope Control
 

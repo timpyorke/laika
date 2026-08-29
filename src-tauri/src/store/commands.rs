@@ -11,6 +11,7 @@ use super::models::{
     SaveRequestCommandInput, SaveVariableInput, SavedRequest, WorkspaceTree,
 };
 use super::StoreHandle;
+use crate::backup::BackupService;
 use crate::error::ApplicationError;
 use crate::http::{
     HttpEngine, HttpRequestInput, HttpResponseOutput, KeyValueEntry, RequestAuth, RequestBody,
@@ -151,8 +152,10 @@ pub async fn move_folder(
 pub async fn save_request(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     mut request: SaveRequestCommandInput,
 ) -> Result<SavedRequest, ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let existing_ref = match request.request.id.as_deref() {
         Some(id) => store.get()?.get_request(id).await?.auth_secret_ref,
         None => None,
@@ -204,8 +207,10 @@ pub async fn rename_request(
 pub async fn duplicate_request(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     id: String,
 ) -> Result<SavedRequest, ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let source = store.get()?.get_request(&id).await?;
     let mut duplicate = store.get()?.duplicate_request(&id).await?;
     if let Some(source_ref) = source.auth_secret_ref {
@@ -239,8 +244,10 @@ pub async fn move_request(
 pub async fn delete_request(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     id: String,
 ) -> Result<(), ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let secret_ref = store.get()?.get_request(&id).await?.auth_secret_ref;
     store.get()?.delete_request(&id).await?;
     if let Some(secret_ref) = secret_ref {
@@ -311,8 +318,10 @@ pub async fn rename_environment(
 pub async fn delete_environment(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     id: String,
 ) -> Result<(), ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let secret_refs = store.get()?.delete_environment(&id).await?;
     for secret_ref in secret_refs {
         let _ = secrets.delete(&secret_ref);
@@ -332,8 +341,10 @@ pub async fn set_active_environment(
 pub async fn save_environment_variable(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     mut variable: SaveVariableInput,
 ) -> Result<EnvironmentVariable, ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let existing_ref = match variable.id.as_deref() {
         Some(id) => store.get()?.get_variable_secret_ref(id).await?,
         None => None,
@@ -386,8 +397,10 @@ pub async fn save_environment_variable(
 pub async fn delete_environment_variable(
     store: State<'_, StoreHandle>,
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     id: String,
 ) -> Result<(), ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     if let Some(secret_ref) = store.get()?.delete_variable(&id).await? {
         let _ = secrets.delete(&secret_ref);
     }
@@ -416,19 +429,23 @@ pub fn secret_store_status(
 }
 
 #[tauri::command]
-pub fn unlock_secret_store(
+pub async fn unlock_secret_store(
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
     mut password: String,
 ) -> Result<SecretStoreStatus, ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     let result = secrets.unlock(&password);
     password.zeroize();
     result
 }
 
 #[tauri::command]
-pub fn lock_secret_store(
+pub async fn lock_secret_store(
     secrets: State<'_, SecretStore>,
+    backup: State<'_, BackupService>,
 ) -> Result<SecretStoreStatus, ApplicationError> {
+    let _data_guard = backup.lock_data().await;
     secrets.lock()
 }
 

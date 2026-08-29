@@ -5,6 +5,7 @@ import { EnvironmentDialog } from "../../features/environments";
 import { HistoryPanel } from "../../features/history";
 import { RequestWorkspace } from "../../features/request";
 import { ResponsePanel } from "../../features/response";
+import { SettingsDialog } from "../../features/settings";
 import { TestRunnerPanel } from "../../features/testing";
 import { useAppStore } from "../../store/use-app-store";
 import { methodColor, methodLabel } from "../../lib/http-display";
@@ -50,6 +51,7 @@ export function AppShell() {
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 900);
   const [responseOpen, setResponseOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const requestClose = (id: string) => {
     const tab = requestTabs.find((item) => item.id === id);
@@ -184,7 +186,7 @@ export function AppShell() {
           >
             {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Settings" title="Settings">
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Settings" title="Settings">
             <Settings2 size={15} />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setResponseOpen((open) => !open)} aria-label={responseOpen ? "Collapse response" : "Expand response"} title={responseOpen ? "Collapse response" : "Expand response"}>{responseOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}</Button>
@@ -223,6 +225,7 @@ export function AppShell() {
         </ResizablePanelGroup>
       </div>
       <EnvironmentDialog />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SaveRequestDialog />
       <ConfirmDialog open={pendingClose !== null} title="Discard unsaved changes?" description="This request has changes that have not been saved." confirmLabel="Discard" onConfirm={() => { if (pendingClose) closeRequestTab(pendingClose); setPendingClose(null); }} onOpenChange={(open) => { if (!open) setPendingClose(null); }} />
     </div>

@@ -1,8 +1,8 @@
 # Release Checklist
 
-Use this checklist for every Laika release candidate. Phase 7A establishes the
-release identity and unsigned CI artifacts; unchecked signing, updater, data
-recovery, security, and clean-machine items remain publication blockers.
+Use this checklist for every Laika release candidate. The release foundation
+and recovery workflow are implemented; unchecked signing, updater, security,
+and clean-machine validation remain publication blockers.
 
 ## Release candidate
 
@@ -25,6 +25,8 @@ recovery, security, and clean-machine items remain publication blockers.
 
 - [ ] Exercise backup and restore with the database, Stronghold snapshot, and
       Stronghold salt as one compatible set.
+- [ ] Confirm a corrupt or incompatible backup is rejected without changing the
+      active workspace.
 - [ ] Exercise an upgrade from the previous stable version without data loss.
 - [ ] Complete the security and privacy review, including CSP, permissions,
       dependency audit, diagnostics, and secret redaction.

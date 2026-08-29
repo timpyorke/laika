@@ -52,7 +52,9 @@ const capability = JSON.parse(capabilitySource);
 const security = config.app?.security;
 if (!security?.csp || typeof security.csp !== "object") fail("production CSP is disabled");
 if (security.devCsp !== null) fail("development CSP policy must remain explicit");
-if (security.freezePrototype !== true) fail("prototype freezing is disabled");
+if (security.freezePrototype !== false) {
+  fail("prototype freezing must remain disabled until the packaged Windows startup crash is resolved");
+}
 if (JSON.stringify(security.capabilities) !== JSON.stringify(["default"])) fail("capability selection is not explicit");
 
 const requiredDirectives = {

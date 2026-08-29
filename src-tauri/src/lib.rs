@@ -1,6 +1,8 @@
 mod backup;
 mod error;
 mod http;
+#[cfg(feature = "performance")]
+pub mod performance;
 mod secrets;
 mod store;
 mod testing;

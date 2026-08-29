@@ -44,11 +44,13 @@ Implemented:
   staged restart-safe restore, rollback retention, and pre-migration recovery
 - Production CSP and a least-privilege Tauri command allowlist, automated
   dependency audits, expanded credential redaction, and timed secret clipboard clearing
+- Reproducible Windows performance baselines for workspace storage, history,
+  large responses, cancellation, and process memory
 
 Not implemented yet:
 
 - Windows code signing and updater release channels
-- Performance baselines and opt-in privacy-safe diagnostics
+- Opt-in privacy-safe diagnostics
 - Clean-machine release validation and complete user documentation
 - A scripting runtime and CLI companion
 
@@ -168,6 +170,15 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo audit --file src-tauri/Cargo.lock
 ```
+
+Run the offline release performance baseline:
+
+```bash
+pnpm perf:baseline
+```
+
+See [docs/performance.md](docs/performance.md) for fixtures, initial results,
+provisional budgets, and the informational CI policy.
 
 Build the desktop app and installers:
 

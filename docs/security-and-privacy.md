@@ -45,7 +45,10 @@ physical access to an unlocked machine is outside the application boundary.
   and remote network connections from the webview are denied.
 - Development CSP is explicitly disabled for Vite hot reload. Development
   builds are not release artifacts.
-- JavaScript prototype freezing is enabled in production configuration.
+- JavaScript prototype freezing is explicitly disabled because enabling Tauri's
+  `freezePrototype` option crashes the packaged Windows executable during
+  startup. The security configuration check pins this compatibility exception
+  so an upgrade cannot silently change it in either direction.
 - The main window has one custom permission containing the exact registered
   command allowlist. Tauri's broad core default and opener permissions are not
   granted, and the unused opener plugin is not included.
@@ -82,6 +85,11 @@ physical access to an unlocked machine is outside the application boundary.
 
 ## Residual risks
 
+- JavaScript prototypes are not frozen in the webview. The restrictive CSP,
+  bundled-only frontend assets, and exact Tauri command allowlist remain the
+  primary controls against injected or compromised frontend code. Re-test
+  `freezePrototype` after Tauri or WebView2 upgrades and remove this exception
+  only after a packaged NSIS/MSI build starts and completes the core smoke test.
 - While the vault is unlocked, a compromised frontend or process running with
   the user's privileges could request revealed values. CSP and least-privilege
   command permissions reduce exposure but cannot defend a compromised OS.

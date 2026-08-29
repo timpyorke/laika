@@ -10,13 +10,19 @@ pub mod commands;
 mod environments;
 mod history;
 pub mod models;
+#[cfg(any(test, feature = "performance"))]
+mod performance;
 mod requests;
 mod test_runs;
 #[cfg(test)]
 mod tests;
 
 use crate::error::ApplicationError;
+#[cfg(feature = "performance")]
+pub(crate) use history::{HistoryDraft, HistoryResponse};
 use models::{new_id, now_ms};
+#[cfg(feature = "performance")]
+pub(crate) use performance::FixtureProfile;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
@@ -75,7 +81,7 @@ impl Store {
         Self::bootstrap(pool).await
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "performance"))]
     pub async fn close(self) {
         self.pool.close().await;
     }

@@ -323,7 +323,7 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [x] Create CI for frontend checks, Rust tests, and Tauri builds.
 - [x] Add backup/restore and database recovery workflows.
 - [x] Review security: secret handling, command permissions, CSP, and dependency auditing.
-- [ ] Add performance tests for history/database operations and large responses.
+- [x] Add performance tests for history/database operations and large responses.
 - [ ] Add opt-in crash/error diagnostics with no sensitive data.
 - [x] Write a release checklist.
 - [ ] Write complete user documentation.
@@ -369,6 +369,10 @@ Goal: Prepare the app for distribution and long-term maintenance.
   cURL snippets, history, and saved/exported requests. CI validates permission
   drift and audits both frontend and Rust dependencies. The full threat model
   and residual risks are in [security-and-privacy.md](security-and-privacy.md).
+- A release-only, offline performance harness measures deterministic empty,
+  typical, and maximum workspaces plus 10 MiB and 50 MiB response boundaries.
+  Scheduled/manual Windows CI stores informational results; provisional budgets
+  and the initial baseline are documented in [performance.md](performance.md).
 
 ## Cross-Phase Quality Gates
 
@@ -395,10 +399,9 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Continue Phase 7 with performance baselines for history, database operations,
-and large responses, then design opt-in diagnostics that cannot collect
-sensitive request data. The detailed delivery order, acceptance criteria, and
-release dependencies are in [next-roadmap.md](next-roadmap.md).
+Continue Phase 7 with opt-in diagnostics that cannot collect sensitive request
+data. The detailed delivery order, acceptance criteria, and release dependencies
+are in [next-roadmap.md](next-roadmap.md).
 
 ## Scope Control
 

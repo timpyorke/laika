@@ -22,6 +22,8 @@ and clean-machine validation remain publication blockers.
 - [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml --check` passes.
 - [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` passes.
 - [ ] `cargo test --manifest-path src-tauri/Cargo.toml` passes.
+- [ ] `pnpm perf:baseline` stays within the documented investigation budgets,
+      or any variance is repeated and explained.
 - [ ] The CI quality-and-Windows-bundle job passes for the release commit.
 
 ## Data and security

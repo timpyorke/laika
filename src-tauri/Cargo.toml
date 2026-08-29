@@ -15,6 +15,14 @@ edition = "2021"
 name = "laika_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+performance = []
+
+[[bin]]
+name = "performance-baseline"
+path = "src/performance_main.rs"
+required-features = ["performance"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

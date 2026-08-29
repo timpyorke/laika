@@ -4,14 +4,12 @@ This roadmap covers the work between the current Phase 7 state and the first
 public Windows release. The priority is to close release risks before starting
 the deferred CLI, scripting, or additional protocol clients.
 
-## Recommended Next Task: Performance Baseline
+## Current Status
 
-Establish reproducible performance fixtures and measurements before optimizing
-anything. This work is independent of signing credentials and release-channel
-decisions, and it turns performance from a subjective release check into a
-repeatable quality signal.
+Phase 7D performance baselines were completed on 2026-08-29. The recommended
+next task is Phase 7E privacy-safe diagnostics.
 
-### Scope
+### Completed 7D Scope
 
 - Add deterministic workspace fixtures for an empty workspace, a typical
   workspace, and a maximum-retention workspace with 1,000 history entries.
@@ -27,7 +25,7 @@ repeatable quality signal.
   as informational CI output first, then promote stable regression checks after
   enough runs establish normal variance.
 
-### Acceptance Criteria
+### 7D Acceptance Criteria
 
 - A developer can regenerate all datasets and rerun the measurements from
   documented commands.
@@ -41,8 +39,9 @@ repeatable quality signal.
 
 ### 7D. Performance Baselines
 
-**Outcome:** Release-critical storage and response paths have reproducible
-baselines and explicit budgets.
+**Status: Complete.** Release-critical storage and response paths have
+reproducible baselines and explicit provisional budgets. See
+[performance.md](performance.md).
 
 1. Build fixture generators and benchmark harnesses.
 2. Capture the first Windows baseline.

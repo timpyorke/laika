@@ -21,6 +21,9 @@ pub enum ApplicationErrorCode {
     NotFound,
     DatabaseError,
     DatabaseUnavailable,
+    BackupError,
+    InvalidBackup,
+    RestoreError,
     UnexpectedError,
 }
 
@@ -47,6 +50,9 @@ impl ApplicationErrorCode {
             Self::NotFound => "NOT_FOUND",
             Self::DatabaseError => "DATABASE_ERROR",
             Self::DatabaseUnavailable => "DATABASE_UNAVAILABLE",
+            Self::BackupError => "BACKUP_ERROR",
+            Self::InvalidBackup => "INVALID_BACKUP",
+            Self::RestoreError => "RESTORE_ERROR",
             Self::UnexpectedError => "UNEXPECTED_ERROR",
         }
     }
@@ -232,6 +238,30 @@ impl ApplicationError {
             ApplicationErrorCode::DatabaseUnavailable,
             "Workspace storage is unavailable",
             "Laika could not open its local database, so collections and history are disabled.",
+        )
+    }
+
+    pub fn backup() -> Self {
+        Self::new(
+            ApplicationErrorCode::BackupError,
+            "Workspace backup failed",
+            "Laika could not create a complete workspace backup. Your current data was not changed.",
+        )
+    }
+
+    pub fn invalid_backup() -> Self {
+        Self::new(
+            ApplicationErrorCode::InvalidBackup,
+            "Backup file is not valid",
+            "Choose an intact Laika workspace backup created by this or an earlier compatible version.",
+        )
+    }
+
+    pub fn restore() -> Self {
+        Self::new(
+            ApplicationErrorCode::RestoreError,
+            "Workspace restore failed",
+            "Laika kept the current workspace unchanged. Try another backup or restart the app and try again.",
         )
     }
 

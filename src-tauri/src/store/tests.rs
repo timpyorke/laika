@@ -149,6 +149,17 @@ async fn upgrades_a_version_one_database_without_losing_workspace_data() {
         .environments
         .is_empty());
     drop(upgraded);
+    let recovery_files: Vec<_> = std::fs::read_dir(directory.join("recovery"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    assert_eq!(recovery_files.len(), 1);
+    assert!(recovery_files[0]
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .starts_with("pre-migration-1-to-"));
+    assert_eq!(Store::validate_backup(&recovery_files[0]).await.unwrap(), 1);
     let _ = std::fs::remove_dir_all(directory);
 }
 

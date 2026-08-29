@@ -18,6 +18,9 @@ const errors: Record<ApplicationErrorCode, Omit<ApplicationError, "code">> = {
   NOT_FOUND: { title: "Item no longer exists", message: "This item was removed. Refresh the workspace and try again.", recoverable: true },
   DATABASE_ERROR: { title: "Workspace could not be updated", message: "The change was not saved. Try again, and restart Laika if the problem continues.", recoverable: true },
   DATABASE_UNAVAILABLE: { title: "Workspace storage is unavailable", message: "Laika could not open its local database, so collections and history are disabled.", recoverable: true },
+  BACKUP_ERROR: { title: "Workspace backup failed", message: "Laika could not create a complete workspace backup. Your current data was not changed.", recoverable: true },
+  INVALID_BACKUP: { title: "Backup file is not valid", message: "Choose an intact Laika workspace backup created by this or an earlier compatible version.", recoverable: true },
+  RESTORE_ERROR: { title: "Workspace restore failed", message: "Laika kept the current workspace unchanged. Try another backup or restart the app and try again.", recoverable: true },
   UNEXPECTED_ERROR: { title: "Request failed", message: "An unexpected error occurred while processing the request.", recoverable: true },
 };
 

@@ -6,8 +6,9 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 is in
-progress, beginning with the release foundation.
+Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 release
+readiness is in progress, with the release foundation and workspace recovery
+workflow implemented.
 
 Implemented:
 
@@ -39,11 +40,12 @@ Implemented:
 - GitHub Actions quality gates that build unsigned Windows NSIS and MSI
   artifacts for validation
 - A release checklist that makes the remaining publication blockers explicit
+- Verified whole-workspace `.laika-backup` archives with encrypted-vault support,
+  staged restart-safe restore, rollback retention, and pre-migration recovery
 
 Not implemented yet:
 
 - Windows code signing and updater release channels
-- Workspace backup/restore and database recovery workflows
 - Final security, privacy, performance, and diagnostics work
 - Clean-machine release validation and complete user documentation
 - A scripting runtime and CLI companion
@@ -76,7 +78,7 @@ Current:
 ├── src/                     React frontend source
 │   ├── components/          App shell, layout, and shared UI primitives
 │   ├── features/            Feature modules: request, response, collections,
-│   │                        history, environments, testing
+│   │                        history, environments, testing, settings
 │   ├── lib/                 Error contract and display helpers
 │   ├── store/               Zustand application store
 │   ├── types/               Shared HTTP and workspace contracts
@@ -89,6 +91,7 @@ Current:
 │   ├── migrations/          Versioned SQLite schema migrations
 │   ├── src/
 │   │   ├── error.rs         Shared user-facing error contract
+│   │   ├── backup.rs        Backup, validation, staged restore, and rollback
 │   │   ├── http.rs          HTTP engine built on reqwest
 │   │   ├── testing.rs       CLI-safe assertion and test-result contracts
 │   │   ├── secrets.rs       Stronghold-backed encrypted secret vault
@@ -196,6 +199,16 @@ CI uploads these unsigned artifacts for 14 days and identifies them by commit
 SHA. They are validation builds until signing and updater publishing are added.
 See [docs/versioning.md](docs/versioning.md) and
 [docs/release-checklist.md](docs/release-checklist.md).
+
+## Workspace Backup and Restore
+
+Open **Settings** to create a complete `.laika-backup` archive or stage a
+restore. Restores are applied on the next launch, after the archive and database
+have passed compatibility and integrity checks. Encrypted secrets remain
+encrypted and require the original vault master password.
+
+See [docs/backup-and-recovery.md](docs/backup-and-recovery.md) for the workflow,
+recovery behavior, and backup format contract.
 
 ## Roadmap
 

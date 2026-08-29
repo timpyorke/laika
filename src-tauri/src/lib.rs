@@ -1,3 +1,4 @@
+mod backup;
 mod error;
 mod http;
 mod secrets;
@@ -5,6 +6,7 @@ mod store;
 mod testing;
 mod variables;
 
+use backup::BackupService;
 use http::HttpEngine;
 use secrets::SecretStore;
 use store::{commands, Store, StoreHandle};
@@ -16,15 +18,26 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(http_engine)
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let directory = app.path().app_data_dir().ok();
-            app.manage(open_store(app.handle()));
+            app.manage(
+                directory
+                    .as_deref()
+                    .map(open_store)
+                    .unwrap_or_else(StoreHandle::unavailable),
+            );
             app.manage(
                 directory
                     .as_deref()
                     .map(SecretStore::new)
                     .unwrap_or_else(SecretStore::unavailable),
+            );
+            app.manage(
+                directory
+                    .map(BackupService::new)
+                    .unwrap_or_else(BackupService::unavailable),
             );
             Ok(())
         })
@@ -63,6 +76,8 @@ pub fn run() {
             commands::run_collection,
             commands::list_test_runs,
             commands::get_test_run,
+            backup::create_workspace_backup,
+            backup::stage_workspace_restore,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -71,15 +86,23 @@ pub fn run() {
 /// Opening the workspace must not be able to stop the app from starting. If the
 /// database cannot be created or migrated, the window still opens and every
 /// workspace command reports a recoverable error instead.
-fn open_store(app: &tauri::AppHandle) -> StoreHandle {
-    let Ok(directory) = app.path().app_data_dir() else {
-        return StoreHandle::unavailable();
-    };
-    if std::fs::create_dir_all(&directory).is_err() {
+fn open_store(directory: &std::path::Path) -> StoreHandle {
+    if std::fs::create_dir_all(directory).is_err() {
         return StoreHandle::unavailable();
     }
+    let restored = backup::apply_pending_restore(directory).unwrap_or(false);
     match tauri::async_runtime::block_on(Store::open(&directory.join("laika.db"))) {
         Ok(store) => StoreHandle::ready(store),
+        Err(_) if restored => {
+            if backup::rollback_last_restore(directory).is_ok() {
+                match tauri::async_runtime::block_on(Store::open(&directory.join("laika.db"))) {
+                    Ok(store) => StoreHandle::ready(store),
+                    Err(_) => StoreHandle::unavailable(),
+                }
+            } else {
+                StoreHandle::unavailable()
+            }
+        }
         Err(_) => StoreHandle::unavailable(),
     }
 }

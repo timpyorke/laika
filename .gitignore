@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Local design-sync tooling (Claude Design)
+.ds-sync
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

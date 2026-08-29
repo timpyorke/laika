@@ -177,6 +177,32 @@ impl SecretStore {
             .save()
             .map_err(|_| ApplicationError::secret_store())
     }
+
+    /// Flushes the encrypted vault and copies its complete on-disk pair into a
+    /// backup staging directory while holding the vault mutex. A snapshot and
+    /// its KDF salt are never backed up independently.
+    pub fn snapshot_to(&self, directory: &Path) -> Result<bool, ApplicationError> {
+        if !self.available {
+            return Err(ApplicationError::backup());
+        }
+        let guard = self.inner.lock().map_err(|_| ApplicationError::backup())?;
+        if let Some(stronghold) = guard.as_ref() {
+            stronghold.save().map_err(|_| ApplicationError::backup())?;
+        }
+        let snapshot_exists = self.snapshot_path.exists();
+        let salt_exists = self.salt_path.exists();
+        if snapshot_exists != salt_exists {
+            return Err(ApplicationError::backup());
+        }
+        if !snapshot_exists {
+            return Ok(false);
+        }
+        std::fs::copy(&self.snapshot_path, directory.join("laika.stronghold"))
+            .map_err(|_| ApplicationError::backup())?;
+        std::fs::copy(&self.salt_path, directory.join("laika.stronghold.salt"))
+            .map_err(|_| ApplicationError::backup())?;
+        Ok(true)
+    }
 }
 
 #[cfg(test)]

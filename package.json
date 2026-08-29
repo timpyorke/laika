@@ -2,11 +2,20 @@
   "name": "laika",
   "private": true,
   "version": "0.1.0",
+  "description": "A local-first desktop REST client built with Tauri.",
+  "author": "Thongphitak Sowanna",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/timpyorke/laika.git"
+  },
+  "packageManager": "pnpm@11.19.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
+    "version:check": "node scripts/check-version.mjs",
+    "version:set": "node scripts/set-version.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

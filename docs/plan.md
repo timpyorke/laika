@@ -32,7 +32,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Complete |
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Complete |
 | 6 | API Testing | Users can create assertions and run test cases | Complete |
-| 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | Planned |
+| 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | In Progress |
 
 Checklist convention:
 
@@ -317,15 +317,16 @@ Goal: Prepare the app for distribution and long-term maintenance.
 
 ### Checklist
 
-- [ ] Configure production app metadata, icons, versioning, and bundle identifiers.
+- [x] Configure production app metadata, icons, versioning, and bundle identifiers.
 - [ ] Add code signing for the Windows installer.
 - [ ] Add an updater strategy and release channels.
-- [ ] Create CI for frontend checks, Rust tests, and Tauri builds.
+- [x] Create CI for frontend checks, Rust tests, and Tauri builds.
 - [ ] Add backup/restore and database recovery workflows.
 - [ ] Review security: secret handling, command permissions, CSP, and dependency auditing.
 - [ ] Add performance tests for history/database operations and large responses.
 - [ ] Add opt-in crash/error diagnostics with no sensitive data.
-- [ ] Write user documentation and a release checklist.
+- [x] Write a release checklist.
+- [ ] Write complete user documentation.
 
 ### Definition of Done
 
@@ -334,17 +335,33 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [ ] Release artifacts are produced by CI and are traceable.
 - [ ] The security and privacy checklist passes before publication.
 
+### Implementation Notes
+
+- Production identity uses the `Laika` product name, the stable
+  `com.codenour.laika` bundle identifier, and an application-specific icon set
+  generated from the checked-in high-resolution source image.
+- Semantic versions are kept aligned across the frontend, Tauri configuration,
+  and Rust package. `pnpm version:set` updates all three manifests and
+  `pnpm version:check` prevents inconsistent release artifacts.
+- GitHub Actions runs the frontend build and tests plus Rust formatting, linting,
+  and tests on Windows, then creates unsigned NSIS and MSI validation artifacts
+  tied to the source commit SHA. Signing and release publishing remain deferred
+  until the certificate and update-channel strategy are selected.
+- The release checklist documents the current publication blockers, including
+  backup/restore, security review, signing, updater validation, and clean-machine
+  upgrade testing.
+
 ## Cross-Phase Quality Gates
 
 Use this checklist to close the active phase, then reset it when the next phase begins:
 
-- [x] Frontend: type checking and the production build pass.
-- [x] Rust: formatting, linting, and tests pass.
-- [x] Contract: frontend/backend payloads have validation and any required backward compatibility.
-- [x] UX: loading, empty, success, and error states are complete.
-- [x] Security: secrets do not enter logs, history, or error payloads.
-- [x] Data: schema changes include migration and recovery considerations.
-- [x] Documentation: the README and this plan are updated when scope or status changes.
+- [ ] Frontend: type checking and the production build pass.
+- [ ] Rust: formatting, linting, and tests pass.
+- [ ] Contract: frontend/backend payloads have validation and any required backward compatibility.
+- [ ] UX: loading, empty, success, and error states are complete.
+- [ ] Security: secrets do not enter logs, history, or error payloads.
+- [ ] Data: schema changes include migration and recovery considerations.
+- [ ] Documentation: the README and this plan are updated when scope or status changes.
 
 ## Suggested Commands
 
@@ -359,8 +376,8 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Begin Phase 7 with production metadata, CI quality gates, and a documented
-release checklist before adding signing and update channels.
+Continue Phase 7 with coordinated backup/restore and database recovery before
+locking down CSP, dependency auditing, diagnostics, and performance baselines.
 
 ## Scope Control
 

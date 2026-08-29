@@ -6,7 +6,8 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete.
+Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 is in
+progress, beginning with the release foundation.
 
 Implemented:
 
@@ -33,10 +34,18 @@ Implemented:
 - Request assertions for status, headers, JSON paths, and response time
 - Sequential collection runs with explicit environment selection, persisted
   summaries, detailed failures, and machine-readable JSON export
+- Production product metadata, a Laika app icon, and a documented Semantic
+  Versioning workflow
+- GitHub Actions quality gates that build unsigned Windows NSIS and MSI
+  artifacts for validation
+- A release checklist that makes the remaining publication blockers explicit
 
 Not implemented yet:
 
-- Production release automation, signing, and update channels
+- Windows code signing and updater release channels
+- Workspace backup/restore and database recovery workflows
+- Final security, privacy, performance, and diagnostics work
+- Clean-machine release validation and complete user documentation
 - A scripting runtime and CLI companion
 
 ## Tech Stack
@@ -60,7 +69,10 @@ Current:
 
 ```text
 .
+├── .github/workflows/       CI quality gates and Windows bundle builds
+├── docs/                    Architecture, roadmap, versioning, and release docs
 ├── public/                  Static assets served by Vite
+├── scripts/                 Release version consistency tooling
 ├── src/                     React frontend source
 │   ├── components/          App shell, layout, and shared UI primitives
 │   ├── features/            Feature modules: request, response, collections,
@@ -129,6 +141,13 @@ Run the frontend tests:
 pnpm test
 ```
 
+Verify or update the application version:
+
+```bash
+pnpm version:check
+pnpm version:set 0.2.0
+```
+
 Run the Rust checks:
 
 ```bash
@@ -145,8 +164,8 @@ pnpm tauri build
 
 ## Local Requirements
 
-- Node.js
-- pnpm
+- Node.js 24 LTS
+- pnpm 11
 - Rust toolchain via rustup
 - Tauri system dependencies for Windows
 - WebView2 Runtime
@@ -170,8 +189,13 @@ src-tauri/target/release/bundle/
 Typical Windows artifacts:
 
 - `src-tauri/target/release/laika.exe`
-- `src-tauri/target/release/bundle/msi/laika_0.1.0_x64_en-US.msi`
-- `src-tauri/target/release/bundle/nsis/laika_0.1.0_x64-setup.exe`
+- `src-tauri/target/release/bundle/msi/*.msi`
+- `src-tauri/target/release/bundle/nsis/*.exe`
+
+CI uploads these unsigned artifacts for 14 days and identifies them by commit
+SHA. They are validation builds until signing and updater publishing are added.
+See [docs/versioning.md](docs/versioning.md) and
+[docs/release-checklist.md](docs/release-checklist.md).
 
 ## Roadmap
 

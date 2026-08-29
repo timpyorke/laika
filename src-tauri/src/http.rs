@@ -157,7 +157,7 @@ pub struct HttpEngine {
 impl HttpEngine {
     pub fn new() -> Result<Self, ApplicationError> {
         let client = Client::builder()
-            .user_agent("Laika/0.1")
+            .user_agent(concat!("Laika/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|_| ApplicationError::unexpected())?;
         Ok(Self {

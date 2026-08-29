@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Input } from "../../components/ui/input";
-import { methodColor } from "../../lib/http-display";
+import { methodColor, methodLabel } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import type { Folder as FolderModel, RequestSummary } from "../../types/workspace";
@@ -125,7 +125,7 @@ export function CollectionsSidebar() {
       key={request.id}
       level={level}
       active={request.id === activeRequestId}
-      icon={<span className={cn("w-11 shrink-0 text-[10px] font-bold", methodColor[request.method])}>{request.method}</span>}
+      icon={<span className={cn("w-9 shrink-0 text-right font-mono text-[10px] font-semibold", methodColor[request.method])}>{methodLabel[request.method]}</span>}
       label={request.name}
       renaming={renaming?.kind === "request" && renaming.id === request.id}
       onRename={(value) => commitRename({ kind: "request", id: request.id }, value)}
@@ -153,7 +153,7 @@ export function CollectionsSidebar() {
         <TreeRow
           level={level}
           expanded={expanded}
-          icon={<Folder size={15} className="shrink-0 text-[#d19a24]" />}
+          icon={<Folder size={13} strokeWidth={1.5} className="shrink-0 text-[var(--method-put)]" />}
           label={folder.name}
           count={childFolders.length + childRequests.length}
           renaming={renaming?.kind === "folder" && renaming.id === folder.id}
@@ -182,36 +182,33 @@ export function CollectionsSidebar() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-1.5 px-3 py-3">
+      <div className="flex items-center gap-1 border-b border-[var(--border-subtle)] p-2">
         <label className="relative block min-w-0 flex-1">
-          <Search className="absolute left-2.5 top-2.5 text-[var(--muted)]" size={15} />
+          <Search className="absolute left-2 top-[9px] text-[var(--faint)]" size={12} aria-hidden="true" />
           <Input
-            className="w-full pl-8"
-            placeholder="Search collections"
+            className="h-7 w-full pl-7 text-[11.5px]"
+            placeholder="Search requests"
             aria-label="Search collections"
             value={search}
             onChange={(event) => setCollectionSearch(event.target.value)}
           />
         </label>
-        <Button variant="secondary" size="icon" aria-label="New collection" title="New collection" onClick={() => setCreatingCollection(true)}>
-          <Plus size={15} />
-        </Button>
-        <Button variant="ghost" size="icon" aria-label="Export collections" title="Export collections" onClick={() => void downloadExport()}><Download size={15} /></Button>
-        <Button variant="ghost" size="icon" aria-label="Import collections" title="Import collections" onClick={() => importInput.current?.click()}><Upload size={15} /></Button>
+        <Button variant="ghost" size="icon" aria-label="Export collections" title="Export collections" onClick={() => void downloadExport()}><Download size={13} /></Button>
+        <Button variant="ghost" size="icon" aria-label="Import collections" title="Import collections" onClick={() => importInput.current?.click()}><Upload size={13} /></Button>
         <input ref={importInput} className="hidden" type="file" accept="application/json,.json" onChange={(event) => void importFile(event)} aria-label="Import Laika collections file" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-3 panel-scroll">
-        {workspaceLoading ? <div className="flex items-center justify-center gap-2 px-3 py-8 text-xs text-[var(--muted)]" role="status"><LoaderCircle className="animate-spin" size={15} /> Loading workspace…</div> : null}
+        {workspaceLoading ? <div className="flex items-center justify-center gap-2 px-3 py-8 text-[11.5px] text-[var(--muted)]" role="status"><LoaderCircle className="animate-spin" size={15} /> Loading workspace…</div> : null}
         {workspaceError ? (
-          <p className="px-3 text-xs text-[var(--danger)]" role="alert">
+          <p className="px-3 text-[11.5px] text-[var(--danger)]" role="alert">
             {workspaceError.message}
           </p>
         ) : null}
 
         {matches ? (
           matches.length === 0 ? (
-            <p className="px-3 py-6 text-center text-xs text-[var(--muted)]">No requests match “{search.trim()}”.</p>
+            <p className="px-3 py-6 text-center text-[11.5px] text-[var(--muted)]">No requests match “{search.trim()}”.</p>
           ) : (
             matches.map((request) => renderRequest(request, 0))
           )
@@ -226,7 +223,7 @@ export function CollectionsSidebar() {
                 <TreeRow
                   level={0}
                   expanded={expanded}
-                  icon={<Folder size={15} className="shrink-0 text-[#d19a24]" />}
+                  icon={<Folder size={13} strokeWidth={1.5} className="shrink-0 text-[var(--warning)]" />}
                   label={collection.name}
                   count={childFolders.length + childRequests.length}
                   renaming={renaming?.kind === "collection" && renaming.id === collection.id}
@@ -266,11 +263,25 @@ export function CollectionsSidebar() {
         ) : null}
 
         {!workspaceLoading && !workspaceError && collections.length === 0 && !creatingCollection && !matches ? (
-          <div className="px-6 py-10 text-center text-xs text-[var(--muted)]">
-            <p className="text-sm font-medium text-[var(--foreground)]">No collections yet</p>
-            <p className="mt-1">Create a collection to save requests and reopen them later.</p>
+          <div className="flex flex-col items-center gap-2.5 px-5 py-12 text-center">
+            <Folder size={26} strokeWidth={1.4} className="text-[var(--border-strong)]" aria-hidden="true" />
+            <p className="text-[12px] font-medium text-[var(--muted)]">No collections yet</p>
+            <p className="text-[11.5px] leading-relaxed text-[var(--faint)]">
+              Collections live in a folder on this PC — no account, no cloud sync.
+            </p>
           </div>
         ) : null}
+      </div>
+
+      <div className="flex h-8 shrink-0 items-center border-t border-[var(--border)] px-2.5 text-[11.5px] text-[var(--muted-dim)]">
+        <button
+          type="button"
+          className="flex cursor-pointer items-center gap-1.5 hover:text-[var(--foreground)]"
+          onClick={() => setCreatingCollection(true)}
+        >
+          <Plus size={12} /> New collection
+        </button>
+        <span className="ml-auto font-mono text-[10.5px] text-[var(--fainter)]">{collections.length} {collections.length === 1 ? "collection" : "collections"}</span>
       </div>
 
       <ConfirmDialog
@@ -323,7 +334,7 @@ interface TreeRowProps {
 function TreeRow({ level, icon, label, count, expanded, active, renaming, actions, onActivate, onRename, onCancelRename, dragItem, onDrop }: TreeRowProps) {
   if (renaming) {
     return (
-      <div className="px-3 py-0.5" style={{ paddingLeft: 12 + level * 14 }}>
+      <div className="px-2 py-0.5" style={{ paddingLeft: 10 + level * 14 }}>
         <NameInput defaultValue={label} placeholder={label} onCommit={onRename} onCancel={onCancelRename} />
       </div>
     );
@@ -331,8 +342,11 @@ function TreeRow({ level, icon, label, count, expanded, active, renaming, action
 
   return (
     <div
-      className={cn("group flex items-center gap-1 pr-1.5", active && "bg-[var(--surface-muted)]")}
-      style={{ paddingLeft: 6 + level * 14 }}
+      className={cn(
+        "group flex items-center gap-1 pr-1",
+        active && "bg-[var(--surface-muted)] shadow-[inset_2px_0_0_var(--accent)]",
+      )}
+      style={{ paddingLeft: 4 + level * 14 }}
       draggable={Boolean(dragItem)}
       onDragStart={(event) => { if (dragItem) { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData(dragMime, JSON.stringify(dragItem)); } }}
       onDragOver={(event) => { if (onDrop) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
@@ -342,16 +356,16 @@ function TreeRow({ level, icon, label, count, expanded, active, renaming, action
         type="button"
         onClick={onActivate}
         aria-expanded={expanded}
-        className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-[var(--surface-muted)]"
+        className="flex h-7 min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded px-2 text-left text-[12px] hover:bg-[var(--surface-muted)]"
       >
         {expanded === undefined ? null : expanded ? (
-          <ChevronDown size={14} className="shrink-0 text-[var(--muted)]" />
+          <ChevronDown size={12} strokeWidth={2} className="shrink-0 text-[var(--muted)]" />
         ) : (
-          <ChevronRight size={14} className="shrink-0 text-[var(--muted)]" />
+          <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-[var(--muted)]" />
         )}
         {icon}
-        <span className="truncate">{label}</span>
-        {count === undefined ? null : <span className="ml-auto pl-1 text-xs text-[var(--muted)]">{count}</span>}
+        <span className={cn("truncate", count !== undefined && "font-medium")}>{label}</span>
+        {count === undefined ? null : <span className="ml-auto pl-1 font-mono text-[10px] text-[var(--fainter)]">{count}</span>}
       </button>
       <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
         {actions.map((action) => (
@@ -396,7 +410,7 @@ function NameInput({ defaultValue = "", placeholder, onCommit, onCancel }: NameI
 
   return (
     <Input
-      className="h-7 w-full text-sm"
+      className="h-7 w-full text-[12px]"
       autoFocus
       value={value}
       placeholder={placeholder}

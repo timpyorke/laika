@@ -4,11 +4,14 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
+import pkg from "./package.json" with { type: "json" };
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
+  // Surfaced as the version chip beside the brand mark in the title bar.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],

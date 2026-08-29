@@ -4,7 +4,7 @@ import { Dialog, DialogContent } from "../../components/ui/dialog";
 import { useAppStore } from "../../store/use-app-store";
 
 const selectClass =
-  "h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-normal text-[var(--foreground)] focus:border-[var(--focus)] focus:outline-none";
+  "h-8 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 text-[12.5px] font-normal text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none";
 
 export type MoveTarget =
   | { kind: "folder"; id: string; name: string; collectionId: string; parentId: string | null }
@@ -91,7 +91,7 @@ export function MoveItemDialog({ target, onOpenChange }: MoveItemDialogProps) {
         description="Choose a collection and destination folder. The item is placed at the end of that location."
       >
         <form className="grid gap-4" onSubmit={submit}>
-          <label className="grid gap-2 text-sm font-medium">
+          <label className="grid gap-2 text-[12.5px] font-medium">
             Collection
             <select
               className={selectClass}
@@ -108,7 +108,7 @@ export function MoveItemDialog({ target, onOpenChange }: MoveItemDialogProps) {
             </select>
           </label>
 
-          <label className="grid gap-2 text-sm font-medium">
+          <label className="grid gap-2 text-[12.5px] font-medium">
             Folder
             <select
               className={selectClass}

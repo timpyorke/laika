@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "laika",
+  "productName": "Laika",
   "version": "0.1.0",
   "identifier": "com.codenour.laika",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "laika",
+        "title": "Laika",
         "width": 800,
         "height": 600
       }
@@ -24,12 +24,17 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Thongphitak Sowanna",
+    "category": "DeveloperTool",
+    "shortDescription": "A local-first desktop REST client.",
+    "longDescription": "Compose, send, inspect, organize, and test HTTP API requests without sending workspace data or credentials to a cloud service.",
+    "copyright": "Copyright © 2026 Thongphitak Sowanna",
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/laika-32.png",
+      "icons/laika-128.png",
+      "icons/laika-256.png",
+      "icons/laika.icns",
+      "icons/laika.ico"
     ]
   }
 }

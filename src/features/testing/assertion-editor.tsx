@@ -25,7 +25,7 @@ const defaults: Record<AssertionKind, Pick<RequestAssertion, "operator" | "targe
   responseTime: { operator: "lessThan", target: "", expected: "1000" },
 };
 
-const selectClass = "h-9 min-w-0 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm";
+const selectClass = "h-8 min-w-0 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-[12.5px]";
 
 export function AssertionEditor() {
   const assertions = useAppStore((state) => state.draft.assertions);
@@ -37,16 +37,16 @@ export function AssertionEditor() {
   return <div className="flex min-h-0 flex-1 flex-col overflow-auto p-4 panel-scroll">
     <div className="mb-4 flex items-start justify-between gap-4">
       <div>
-        <h3 className="text-sm font-semibold">Response assertions</h3>
-        <p className="mt-1 text-xs text-[var(--muted)]">Assertions run after this saved request. Use variables such as <code>{"{{expectedId}}"}</code> instead of storing sensitive expected values.</p>
+        <h3 className="font-display text-[13.5px] font-semibold">Response assertions</h3>
+        <p className="mt-1 text-[11.5px] text-[var(--muted)]">Assertions run after this saved request. Use variables such as <code>{"{{expectedId}}"}</code> instead of storing sensitive expected values.</p>
       </div>
       <Button type="button" size="sm" onClick={add}><Plus size={14} /> Add assertion</Button>
     </div>
-    {assertions.length === 0 ? <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">No assertions yet. A request with no assertions passes when it completes successfully.</div> : <div className="grid gap-2">
+    {assertions.length === 0 ? <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-[var(--border)] p-8 text-center text-[12.5px] text-[var(--muted)]">No assertions yet. A request with no assertions passes when it completes successfully.</div> : <div className="grid gap-2">
       {assertions.map((assertion, index) => {
         const needsTarget = assertion.kind === "header" || assertion.kind === "jsonPath";
         const needsExpected = assertion.operator !== "exists" && assertion.operator !== "notExists";
-        return <fieldset key={assertion.id} className="grid min-w-0 grid-cols-2 gap-2 rounded-md border border-[var(--border)] bg-[var(--background)] p-2 2xl:grid-cols-[minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(130px,1fr)_minmax(120px,1fr)_32px]">
+        return <fieldset key={assertion.id} className="grid min-w-0 grid-cols-2 gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-sunken)] p-2 2xl:grid-cols-[minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(130px,1fr)_minmax(120px,1fr)_32px]">
           <legend className="sr-only">Assertion {index + 1}</legend>
           <label className="grid gap-1 text-[11px] text-[var(--muted)]">Type<select aria-label={`Assertion ${index + 1} type`} className={selectClass} value={assertion.kind} onChange={(event) => changeKind(assertion.id, event.target.value as AssertionKind)}>{kinds.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>
           <label className="grid gap-1 text-[11px] text-[var(--muted)]">Operator<select aria-label={`Assertion ${index + 1} operator`} className={selectClass} value={assertion.operator} onChange={(event) => update(assertion.id, { operator: event.target.value as AssertionOperator })}>{operators[assertion.kind].map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}</select></label>

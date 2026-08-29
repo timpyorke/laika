@@ -1,4 +1,4 @@
-import { Box, Clock3, Code2, FlaskConical, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings2, Sun, Variable, X } from "lucide-react";
+import { Boxes, ChevronDown, Clock3, FlaskConical, Layers, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings2, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CollectionsSidebar, SaveRequestDialog } from "../../features/collections";
 import { EnvironmentDialog } from "../../features/environments";
@@ -7,12 +7,15 @@ import { RequestWorkspace } from "../../features/request";
 import { ResponsePanel } from "../../features/response";
 import { TestRunnerPanel } from "../../features/testing";
 import { useAppStore } from "../../store/use-app-store";
-import { methodColor } from "../../lib/http-display";
+import { methodColor, methodLabel } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
+import { LaikaMark } from "../ui/laika-mark";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+
+const appVersion = __APP_VERSION__;
 
 function useCompactLayout() {
   const [compact, setCompact] = useState(() => window.innerWidth < 900);
@@ -88,44 +91,89 @@ export function AppShell() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
-      <header className="flex h-12 shrink-0 items-center border-b border-[var(--border)] bg-[var(--surface)] px-3">
-        <div className="flex w-[220px] shrink-0 items-center gap-2 max-[899px]:w-auto">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent)] text-white dark:text-[#10201e]">
-            <Code2 size={16} strokeWidth={2.5} />
-          </div>
-          <span className="text-sm font-semibold max-[899px]:hidden">Laika</span>
-          <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setSidebarOpen((open) => !open)} aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>{sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</Button>
+      <header className="flex h-12 shrink-0 items-stretch border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="flex w-[220px] shrink-0 items-center gap-2.5 border-r border-[var(--border)] px-3 max-[899px]:w-auto">
+          <LaikaMark />
+          <span className="font-display text-[15.5px] font-semibold tracking-[0.01em] max-[899px]:hidden">Laika</span>
+          <span className="rounded border border-[var(--border)] px-1 py-px font-mono text-[10px] text-[var(--faint)] max-[899px]:hidden">{appVersion}</span>
+          <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setSidebarOpen((open) => !open)} aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>{sidebarOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}</Button>
         </div>
-        <div className="flex min-w-0 flex-1 items-center self-stretch border-x border-[var(--border)]">
-          <div className="flex h-full min-w-0 flex-1 overflow-x-auto panel-scroll" role="tablist" aria-label="Open requests">
-            {requestTabs.map((tab) => (
-              <div key={tab.id} className={cn("flex h-full min-w-40 max-w-[260px] items-center gap-2 border-r border-[var(--border)] px-3 text-sm", tab.id === activeRequestTabId ? "bg-[var(--background)]" : "bg-[var(--surface)] text-[var(--muted)]")}>
-                <button type="button" role="tab" aria-selected={tab.id === activeRequestTabId} className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => activateRequestTab(tab.id)}>
-                  <span className={cn("shrink-0 text-xs font-semibold", methodColor[tab.draft.method])}>{tab.draft.method}</span>
-                  <span className="truncate" title={tab.draft.name}>{tab.draft.name}</span>
-                  {tab.dirty ? <span className="shrink-0 text-[var(--accent)]" aria-label="Unsaved changes">●</span> : null}
-                </button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Close ${tab.draft.name}`} title="Close request" onClick={() => requestClose(tab.id)}><X size={13} /></Button>
-              </div>
-            ))}
+
+        <div className="flex min-w-0 flex-1 items-end gap-[3px] overflow-hidden px-2 pt-[13px]">
+          <div className="flex h-full min-w-0 items-end gap-[3px] overflow-x-auto panel-scroll" role="tablist" aria-label="Open requests">
+            {requestTabs.map((tab) => {
+              const active = tab.id === activeRequestTabId;
+              return (
+                <div
+                  key={tab.id}
+                  className={cn(
+                    "flex min-w-0 max-w-[240px] shrink-0 items-center gap-[7px] rounded-t-md px-2 pl-2.5",
+                    active
+                      ? "h-[35px] border border-b-[var(--background)] border-[var(--border)] border-t-2 border-t-[var(--accent)] bg-[var(--background)]"
+                      : "h-[33px] text-[var(--muted)]",
+                  )}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className="flex min-w-0 cursor-pointer items-center gap-[7px] text-left"
+                    onClick={() => activateRequestTab(tab.id)}
+                  >
+                    <span className={cn("shrink-0 font-mono text-[10px] font-semibold tracking-[0.04em]", methodColor[tab.draft.method])}>{methodLabel[tab.draft.method]}</span>
+                    <span className={cn("truncate text-[12.5px]", active && "font-medium")} title={tab.draft.name}>{tab.draft.name}</span>
+                  </button>
+                  {tab.dirty ? (
+                    <span className="flex shrink-0 items-center gap-1 rounded-[3px] bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] text-[var(--warning)]" title="Unsaved changes">
+                      <span className="h-1 w-1 rounded-full bg-[var(--warning)]" />
+                      Unsaved
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 cursor-pointer items-center justify-center rounded text-[var(--fainter)] hover:text-[var(--foreground)]",
+                      active && "bg-[var(--surface-muted)] text-[var(--muted)]",
+                    )}
+                    aria-label={`Close ${tab.draft.name}`}
+                    title="Close request"
+                    onClick={() => requestClose(tab.id)}
+                  >
+                    <X size={11} strokeWidth={2} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-          <Button variant="ghost" size="icon" className="ml-1" aria-label="New request" title="New request" onClick={newRequest}>
-            <Plus size={16} />
-          </Button>
-        </div>
-        <div className="ml-3 flex items-center gap-1">
-          <select
-            className="h-8 max-w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-xs max-[899px]:hidden"
-            value={activeEnvironmentId ?? ""}
-            onChange={(event) => void setActiveEnvironment(event.target.value || null)}
-            aria-label="Active environment"
-            title="Active environment"
+          <button
+            type="button"
+            className="mb-1 ml-1 flex h-[26px] w-[26px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+            aria-label="New request"
+            title="New request (Ctrl+N)"
+            aria-keyshortcuts="Control+N Meta+N"
+            onClick={newRequest}
           >
-            <option value="">No environment</option>
-            {environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name}</option>)}
-          </select>
+            <Plus size={13} strokeWidth={1.7} />
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 border-l border-[var(--border)] px-3">
+          <label className="relative flex h-7 items-center gap-1.5 rounded-md border border-[var(--border-strong)] pl-2 max-[899px]:hidden">
+            <Layers size={13} className="shrink-0 text-[var(--method-put)]" aria-hidden="true" />
+            <select
+              className="h-full max-w-36 cursor-pointer appearance-none bg-transparent pr-6 text-[11.5px] text-[var(--foreground-soft)] outline-none"
+              value={activeEnvironmentId ?? ""}
+              onChange={(event) => void setActiveEnvironment(event.target.value || null)}
+              aria-label="Active environment"
+              title="Active environment"
+            >
+              <option value="">No environment</option>
+              {environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name}</option>)}
+            </select>
+            <ChevronDown size={11} strokeWidth={2} className="pointer-events-none absolute right-2 text-[var(--muted-dim)]" aria-hidden="true" />
+          </label>
           <Button variant="ghost" size="icon" onClick={() => setEnvironmentDialogOpen(true)} aria-label="Manage environments" title="Environments">
-            <Variable size={16} />
+            <Boxes size={15} />
           </Button>
           <Button
             variant="ghost"
@@ -134,29 +182,29 @@ export function AppShell() {
             aria-label={`Use ${theme === "dark" ? "light" : "dark"} theme`}
             title={`Use ${theme === "dark" ? "light" : "dark"} theme`}
           >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </Button>
           <Button variant="ghost" size="icon" aria-label="Settings" title="Settings">
-            <Settings2 size={16} />
+            <Settings2 size={15} />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setResponseOpen((open) => !open)} aria-label={responseOpen ? "Collapse response" : "Expand response"} title={responseOpen ? "Collapse response" : "Expand response"}>{responseOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}</Button>
+          <Button variant="ghost" size="icon" onClick={() => setResponseOpen((open) => !open)} aria-label={responseOpen ? "Collapse response" : "Expand response"} title={responseOpen ? "Collapse response" : "Expand response"}>{responseOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}</Button>
         </div>
       </header>
 
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           {sidebarOpen ? <><ResizablePanel defaultSize="220px" minSize="180px" maxSize="340px">
-            <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--surface)]" aria-label="Workspace navigation">
+            <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)]" aria-label="Workspace navigation">
               <Tabs defaultValue="collections" className="flex min-h-0 flex-1 flex-col">
-                <TabsList className="px-2" aria-label="Workspace sections">
-                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="collections">
-                    <Box size={14} /> Saved
+                <TabsList className="h-8 gap-0 px-0" aria-label="Workspace sections">
+                  <TabsTrigger className="flex-1 justify-center px-1 text-[12px]" value="collections">
+                    <Boxes size={13} /> Saved
                   </TabsTrigger>
-                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="history">
-                    <Clock3 size={14} /> History
+                  <TabsTrigger className="flex-1 justify-center px-1 text-[12px]" value="history">
+                    <Clock3 size={13} /> History
                   </TabsTrigger>
-                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="runs">
-                    <FlaskConical size={14} /> Runs
+                  <TabsTrigger className="flex-1 justify-center px-1 text-[12px]" value="runs">
+                    <FlaskConical size={13} /> Runs
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="collections" className="flex min-h-0 flex-col"><CollectionsSidebar /></TabsContent>

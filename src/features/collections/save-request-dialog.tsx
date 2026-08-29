@@ -5,7 +5,7 @@ import { Input } from "../../components/ui/input";
 import { useAppStore } from "../../store/use-app-store";
 
 const selectClass =
-  "h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-normal text-[var(--foreground)] focus:border-[var(--focus)] focus:outline-none";
+  "h-8 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 text-[12.5px] font-normal text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none";
 
 /** Asks where a draft should live the first time it is saved. */
 export function SaveRequestDialog() {
@@ -55,26 +55,26 @@ export function SaveRequestDialog() {
     <Dialog open={open} onOpenChange={setSaveDialogOpen}>
       <DialogContent title="Save request" description="Choose where this request is stored in the workspace.">
         <form className="grid gap-4" onSubmit={submit}>
-          <label className="grid gap-2 text-sm font-medium">
+          <label className="grid gap-2 text-[12.5px] font-medium">
             Name
             <Input value={name} onChange={(event) => setLocalName(event.target.value)} autoFocus placeholder="Request name" />
           </label>
 
           {needsNewCollection ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid gap-2 text-[12.5px] font-medium">
               New collection
               <Input
                 value={newCollectionName}
                 onChange={(event) => setNewCollectionName(event.target.value)}
                 placeholder="Collection name"
               />
-              <span className="text-xs font-normal text-[var(--muted)]">
+              <span className="text-[11.5px] font-normal text-[var(--muted)]">
                 You do not have any collections yet, so one is created for this request.
               </span>
             </label>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <label className="grid gap-2 text-sm font-medium">
+              <label className="grid gap-2 text-[12.5px] font-medium">
                 Collection
                 <select
                   className={selectClass}
@@ -89,7 +89,7 @@ export function SaveRequestDialog() {
                   ))}
                 </select>
               </label>
-              <label className="grid gap-2 text-sm font-medium">
+              <label className="grid gap-2 text-[12.5px] font-medium">
                 Folder
                 <select className={selectClass} value={folderId} onChange={(event) => setFolderId(event.target.value)}>
                   <option value="">No folder</option>

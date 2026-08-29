@@ -1,52 +1,123 @@
 @import "tailwindcss";
 
+/* Bundled so the app keeps its typography offline — Laika never fetches assets. */
+@import "@fontsource-variable/space-grotesk/wght.css";
+@import "@fontsource-variable/ibm-plex-sans/wght.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "@fontsource/ibm-plex-mono/latin-600.css";
+
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+  Palette sampled from the 1971 Ajman "Sputnik 2 / Laika" souvenir sheet:
+  cerulean ground instead of the category-standard slate, burnt sienna instead
+  of a saturated orange, litho-muted greens and ochres. Dark is the default;
+  the light theme runs on the sheet's own paper stock.
+*/
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   color: var(--foreground);
   background: var(--background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --background: #f7f8fa;
-  --foreground: #20242c;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-muted: #f0f2f5;
-  --border: #dfe3e8;
-  --border-strong: #c8ced6;
-  --muted: #69717d;
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-soft: #ccfbf1;
-  --focus: #0d9488;
-  --danger: #c2413b;
-  --status-success: #16834b;
-  --status-redirect: #2563b8;
-  --status-client: #c27110;
-  --status-server: #c2413b;
+
+  --font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", "Consolas", monospace;
+
+  /* Light — paper stock */
+  --background: #f6f2e7;
+  --foreground: #14212b;
+  --foreground-soft: #2e3a42;
+  --surface: #efeadc;
+  --surface-raised: #fbf8f0;
+  --surface-muted: #e3dcc7;
+  --surface-sunken: #f2ede0;
+  --border: #d8cfb9;
+  --border-subtle: #e3dcc7;
+  --border-strong: #c7bca3;
+  --muted: #7a7e72;
+  --muted-dim: #9a9b8b;
+  --faint: #9a9b8b;
+  --fainter: #b5b3a0;
+  --accent: #b2521f;
+  --accent-hover: #97431a;
+  --accent-fg: #f6f2e7;
+  --accent-soft: rgba(178, 82, 31, 0.12);
+  --focus: #b2521f;
+  --danger: #97331f;
+  --danger-strong: #97331f;
+  --danger-soft: rgba(151, 51, 31, 0.09);
+  --success: #3f7f6e;
+  --warning: #8a6a1e;
+  --status-success: #3f7f6e;
+  --status-redirect: #2a7f8e;
+  --status-client: #8a6a1e;
+  --status-server: #97331f;
+  --method-get: #3f7f6e;
+  --method-post: #9a7f22;
+  --method-put: #2a7f8e;
+  --method-patch: #1a5f7a;
+  --method-delete: #97331f;
+  --method-head: #3f7f6e;
+  --method-options: #7a7e72;
+  --code-key: #1a5f7a;
+  --code-string: #8a6a1e;
+  --code-number: #2a7f8e;
+  --code-boolean: #9a7f22;
+  --code-punct: #8a8c7e;
+  --segment-active: #fbf8f0;
+  --segment-active-ring: #c7bca3;
 }
 
 .dark {
   color-scheme: dark;
-  --background: #16191f;
-  --foreground: #e8ebef;
-  --surface: #1d2128;
-  --surface-raised: #242932;
-  --surface-muted: #292e37;
-  --border: #353b45;
-  --border-strong: #4a5260;
-  --muted: #9aa3af;
-  --accent: #2dd4bf;
-  --accent-hover: #5eead4;
-  --accent-soft: #153b38;
-  --focus: #5eead4;
-  --danger: #f87171;
-  --status-success: #4ade80;
-  --status-redirect: #60a5fa;
-  --status-client: #fbbf24;
-  --status-server: #f87171;
+  --background: #05283a;
+  --foreground: #e5e1d2;
+  --foreground-soft: #c7c9bc;
+  --surface: #073349;
+  --surface-raised: #073349;
+  --surface-muted: #0b4360;
+  --surface-sunken: #062f45;
+  --border: #0f5070;
+  --border-subtle: #0a3a53;
+  --border-strong: #15678b;
+  --muted: #9fb2b4;
+  --muted-dim: #7a979c;
+  --faint: #628288;
+  --fainter: #547278;
+  --accent: #c4692f;
+  --accent-hover: #db8547;
+  --accent-fg: #fff3e4;
+  --accent-soft: rgba(196, 105, 47, 0.14);
+  --focus: #c4692f;
+  /* Lifted off the sheet's #A8382A so 10–12px text clears AA on the cerulean
+     ground; #A8382A stays as --danger-strong for hairlines and fills. */
+  --danger: #e07c64;
+  --danger-strong: #a8382a;
+  --danger-soft: rgba(168, 56, 42, 0.12);
+  --success: #57a499;
+  --warning: #d6c06a;
+  --status-success: #57a499;
+  --status-redirect: #5ba1a6;
+  --status-client: #d6c06a;
+  --status-server: #e07c64;
+  --method-get: #57a499;
+  --method-post: #d6c06a;
+  --method-put: #5ba1a6;
+  --method-patch: #86bfcb;
+  --method-delete: #e07c64;
+  --method-head: #57a499;
+  --method-options: #9fb2b4;
+  --code-key: #86bfcb;
+  --code-string: #c9b96c;
+  --code-number: #5ba1a6;
+  --code-boolean: #d6c06a;
+  --code-punct: #628288;
+  --segment-active: #15678b;
+  --segment-active-ring: transparent;
 }
 
 * { box-sizing: border-box; }
@@ -58,10 +129,15 @@ html, body, #root {
   overflow: hidden;
 }
 
-body { min-width: 560px; min-height: 420px; }
+body {
+  min-width: 560px;
+  min-height: 420px;
+  font-size: 12.5px;
+}
+
 button, input, textarea, select { font: inherit; letter-spacing: 0; }
 button, [role="tab"], [role="separator"] { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 ::selection { background: var(--accent-soft); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
@@ -71,6 +147,21 @@ button, [role="tab"], [role="separator"] { -webkit-tap-highlight-color: transpar
   background-clip: padding-box;
 }
 .panel-scroll { scrollbar-gutter: stable; }
+
+/* Display face for the brand, panel titles and empty-state headings. */
+.font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+/* Uppercase micro-label used on table headers and status strips. */
+.label-caps {
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+
+@keyframes lk-spin { to { transform: rotate(360deg); } }
+@keyframes lk-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+/* Indeterminate progress rail under the URL bar while a request is in flight. */
+.lk-progress { animation: lk-bar 1.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

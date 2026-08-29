@@ -72,7 +72,8 @@ describe("HistoryPanel", () => {
 
     render(<HistoryPanel />);
 
-    expect(screen.getByText("network error")).toBeInTheDocument();
+    expect(screen.getByText("ERR")).toBeInTheDocument();
+    expect(screen.getByText("NETWORK_ERROR")).toBeInTheDocument();
   });
 
   it("names each delete control by its request so they stay distinguishable", async () => {

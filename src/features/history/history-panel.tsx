@@ -3,16 +3,23 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Input } from "../../components/ui/input";
-import { formatRelativeTime, methodColor } from "../../lib/http-display";
+import { formatRelativeTime, methodColor, methodLabel } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import type { HistorySummary } from "../../types/workspace";
 
 function statusColor(entry: HistorySummary): string {
-  if (entry.status === null) return "text-[var(--danger)]";
-  if (entry.status >= 500) return "text-[var(--danger)]";
-  if (entry.status >= 400) return "text-[#b36a08] dark:text-[#fbbf24]";
-  return "text-[#16834b] dark:text-[#4ade80]";
+  if (entry.status === null) return "text-[var(--status-server)]";
+  if (entry.status >= 500) return "text-[var(--status-server)]";
+  if (entry.status >= 400) return "text-[var(--status-client)]";
+  if (entry.status >= 300) return "text-[var(--status-redirect)]";
+  return "text-[var(--status-success)]";
+}
+
+/** Failures show the error code where a status would be, matching the design. */
+function statusLabel(entry: HistorySummary): string {
+  if (entry.status !== null) return String(entry.status);
+  return "ERR";
 }
 
 export function HistoryPanel() {
@@ -28,11 +35,11 @@ export function HistoryPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-1.5 px-3 py-3">
+      <div className="flex items-center gap-1.5 border-b border-[var(--border-subtle)] p-2">
         <label className="relative block min-w-0 flex-1">
-          <Search className="absolute left-2.5 top-2.5 text-[var(--muted)]" size={15} />
+          <Search className="absolute left-2 top-[9px] text-[var(--faint)]" size={12} aria-hidden="true" />
           <Input
-            className="w-full pl-8"
+            className="h-7 w-full pl-7 text-[11.5px]"
             placeholder="Search history"
             aria-label="Search history"
             value={historySearch}
@@ -40,67 +47,71 @@ export function HistoryPanel() {
           />
         </label>
         <Button
-          variant="secondary"
+          variant="ghost"
           size="icon"
           aria-label="Clear all history"
           title="Clear all history"
           disabled={history.length === 0}
           onClick={() => setConfirmingClear(true)}
         >
-          <Trash2 size={15} />
+          <Trash2 size={13} />
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-3 panel-scroll">
+      <div className="min-h-0 flex-1 overflow-y-auto panel-scroll">
         {history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-6 py-12 text-center text-[var(--muted)]">
-            <Clock3 size={24} strokeWidth={1.5} />
-            <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
+          <div className="flex flex-col items-center justify-center gap-2.5 px-5 py-12 text-center">
+            <Clock3 size={24} strokeWidth={1.4} className="text-[var(--border-strong)]" aria-hidden="true" />
+            <p className="text-[12px] font-medium text-[var(--muted)]">
               {historyLoading ? "Loading history…" : historySearch.trim() === "" ? "No request history" : "No matching entries"}
             </p>
-            <p className="mt-1 text-xs">
-              {historySearch.trim() === "" ? "Completed requests will appear here." : "Try a different name or URL."}
+            <p className="text-[11.5px] leading-relaxed text-[var(--faint)]">
+              {historySearch.trim() === "" ? "Every run is written here automatically and kept on this PC." : "Try a different name or URL."}
             </p>
           </div>
         ) : (
           <ul>
             {history.map((entry) => (
-              <li key={entry.id} className="group flex items-center gap-1 pl-1.5 pr-1.5">
+              <li key={entry.id} className="group relative border-b border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => void openHistoryEntry(entry.id)}
-                  className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-muted)]"
+                  className="flex w-full min-w-0 cursor-pointer flex-col gap-[3px] px-2.5 py-1.5 pr-7 text-left hover:bg-[var(--surface-muted)]"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className={cn("w-11 shrink-0 text-[10px] font-bold", methodColor[entry.method])}>{entry.method}</span>
-                    <span className="truncate text-sm">{entry.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className={cn("shrink-0 font-mono text-[10px] font-semibold", methodColor[entry.method])}>{methodLabel[entry.method]}</span>
+                    <span className={cn("shrink-0 font-mono text-[10.5px] font-semibold", statusColor(entry))}>{statusLabel(entry)}</span>
+                    <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--fainter)]">{formatRelativeTime(entry.createdAt)}</span>
                   </span>
-                  {/* Unsaved requests all record as "Untitled request", so the URL
-                      is what actually distinguishes one entry from another. */}
-                  <span className="w-full truncate pl-[52px] font-mono text-xs text-[var(--muted)]" title={entry.url}>
+                  <span className="w-full truncate font-mono text-[11px] text-[var(--foreground-soft)]" title={entry.url}>
                     {entry.url}
                   </span>
-                  <span className="flex min-w-0 items-center gap-2 pl-[52px] text-xs text-[var(--muted)]">
-                    <span className={cn("shrink-0 font-medium", statusColor(entry))}>
-                      {entry.status ?? entry.errorCode?.replace(/_/g, " ").toLowerCase() ?? "failed"}
+                  <span className="flex w-full min-w-0 items-center gap-2 font-mono text-[10px] text-[var(--faint)]">
+                    <span className="min-w-0 truncate">{entry.name}</span>
+                    <span className="ml-auto flex shrink-0 items-center gap-2">
+                      {entry.errorCode ? <span className="text-[var(--status-server)]">{entry.errorCode}</span> : null}
+                      {entry.elapsedMs === null ? null : <span>{entry.elapsedMs} ms</span>}
                     </span>
-                    {entry.elapsedMs === null ? null : <span className="shrink-0">{entry.elapsedMs} ms</span>}
-                    <span className="ml-auto shrink-0">{formatRelativeTime(entry.createdAt)}</span>
                   </span>
                 </button>
                 <Button
                   variant="danger"
                   size="icon"
-                  className="h-6 w-6 shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                  className="absolute right-0.5 top-1.5 h-6 w-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                   aria-label={`Delete history entry for ${entry.method} ${entry.url}`}
                   onClick={() => void deleteHistoryEntry(entry.id)}
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={12} />
                 </Button>
               </li>
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="flex h-8 shrink-0 items-center border-t border-[var(--border)] px-2.5 text-[11.5px] text-[var(--muted-dim)]">
+        <span>{history.length} {history.length === 1 ? "entry" : "entries"}</span>
+        <span className="ml-auto font-mono text-[10.5px] text-[var(--fainter)]">stored locally</span>
       </div>
 
       <ConfirmDialog

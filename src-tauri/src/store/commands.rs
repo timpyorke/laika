@@ -24,7 +24,7 @@ use crate::testing::{
 use crate::variables::{resolve_assertions, resolve_request};
 use std::time::Instant;
 use tauri::State;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 /// Runs the request, then records it. History is best-effort: a storage failure
 /// is swallowed so it can never turn a successful response into an error.
@@ -47,7 +47,7 @@ pub async fn execute_http_request(
         Ok(store) => store.effective_variables().await?,
         Err(_) => Default::default(),
     };
-    let mut redactions = direct_auth_secrets(&request);
+    let mut redactions = Zeroizing::new(direct_auth_secrets(&request));
     if let Some(secret) = hydrate_saved_auth(store.get().ok(), &secrets, &mut request).await? {
         redactions.push(secret);
     }
@@ -155,6 +155,7 @@ pub async fn save_request(
     backup: State<'_, BackupService>,
     mut request: SaveRequestCommandInput,
 ) -> Result<SavedRequest, ApplicationError> {
+    let auth_secret = request.auth_secret.take().map(Zeroizing::new);
     let _data_guard = backup.lock_data().await;
     let existing_ref = match request.request.id.as_deref() {
         Some(id) => store.get()?.get_request(id).await?.auth_secret_ref,
@@ -162,11 +163,7 @@ pub async fn save_request(
     };
     let needs_secret = !matches!(request.request.auth, super::models::AuthRecord::None);
     let secret_ref = if needs_secret {
-        match request
-            .auth_secret
-            .as_deref()
-            .filter(|value| !value.is_empty())
-        {
+        match auth_secret.as_deref().filter(|value| !value.is_empty()) {
             Some(value) => Some(secrets.put(None, value)?),
             None => existing_ref.clone(),
         }
@@ -174,9 +171,6 @@ pub async fn save_request(
         None
     };
     request.request.auth_secret_ref = secret_ref;
-    if let Some(secret) = request.auth_secret.as_mut() {
-        secret.zeroize();
-    }
     let saved = store.get()?.save_request(request.request).await?;
     if saved.auth_secret_ref != existing_ref {
         if let Some(secret_ref) = existing_ref {
@@ -214,7 +208,7 @@ pub async fn duplicate_request(
     let source = store.get()?.get_request(&id).await?;
     let mut duplicate = store.get()?.duplicate_request(&id).await?;
     if let Some(source_ref) = source.auth_secret_ref {
-        let value = secrets.get(&source_ref)?;
+        let value = Zeroizing::new(secrets.get(&source_ref)?);
         let new_ref = secrets.put(None, &value)?;
         store
             .get()?
@@ -344,16 +338,20 @@ pub async fn save_environment_variable(
     backup: State<'_, BackupService>,
     mut variable: SaveVariableInput,
 ) -> Result<EnvironmentVariable, ApplicationError> {
+    let secret_value = variable
+        .is_secret
+        .then(|| Zeroizing::new(std::mem::take(&mut variable.value)));
     let _data_guard = backup.lock_data().await;
     let existing_ref = match variable.id.as_deref() {
         Some(id) => store.get()?.get_variable_secret_ref(id).await?,
         None => None,
     };
     let secret_ref = if variable.is_secret {
-        if variable.value.is_empty() {
+        let value = secret_value.as_deref().expect("secret value was captured");
+        if value.is_empty() {
             existing_ref.clone()
         } else {
-            Some(secrets.put(None, &variable.value)?)
+            Some(secrets.put(None, value)?)
         }
     } else {
         None
@@ -362,7 +360,6 @@ pub async fn save_environment_variable(
         return Err(ApplicationError::invalid_input());
     }
     let persisted_value = if variable.is_secret {
-        variable.value.zeroize();
         String::new()
     } else {
         variable.value

@@ -11,15 +11,23 @@ pub const MAX_STORED_BODY_BYTES: usize = 1024 * 1024;
 pub const HISTORY_RETENTION_LIMIT: i64 = 1_000;
 pub const MAX_NAME_LENGTH: usize = 200;
 
-/// Header names whose values are dropped before anything is written to SQLite.
-/// Phase 4 replaces this with real secret references; until then the safe
-/// behaviour is to keep the header name and forget the value.
-const SENSITIVE_HEADERS: [&str; 5] = [
+/// Credential-shaped key names whose values are dropped before request,
+/// history, or export data is written to SQLite.
+const SENSITIVE_KEYS: [&str; 14] = [
     "authorization",
     "proxy-authorization",
     "cookie",
     "set-cookie",
     "x-api-key",
+    "api-key",
+    "apikey",
+    "access-token",
+    "refresh-token",
+    "client-secret",
+    "password",
+    "passwd",
+    "token",
+    "secret",
 ];
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -130,7 +138,7 @@ pub struct EnvironmentState {
     pub active_environment_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveVariableInput {
     #[serde(default)]
@@ -144,14 +152,14 @@ pub struct SaveVariableInput {
     pub is_secret: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StoredVariable {
     pub value: String,
     pub is_secret: bool,
     pub secret_ref: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PersistVariableInput {
     pub id: Option<String>,
     pub environment_id: Option<String>,
@@ -183,7 +191,7 @@ pub struct SavedRequest {
     pub assertions: Vec<RequestAssertion>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveRequestInput {
     /// `None` creates a new request; `Some` updates the existing one.
@@ -212,7 +220,7 @@ pub struct SaveRequestInput {
     pub assertions: Vec<RequestAssertion>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveRequestCommandInput {
     #[serde(flatten)]
@@ -266,14 +274,13 @@ pub struct HistoryEntry {
     pub response_truncated: bool,
 }
 
-/// Drops the values of well-known credential headers before anything is written
-/// to SQLite, keeping the header name so the row still describes the request.
+/// Drops credential-shaped values before anything is written to SQLite,
+/// keeping the key so the row still describes the request.
 pub fn redact_entries(entries: &[KeyValueRecord]) -> Vec<KeyValueRecord> {
     entries
         .iter()
         .map(|entry| {
-            let sensitive =
-                SENSITIVE_HEADERS.contains(&entry.key.trim().to_ascii_lowercase().as_str());
+            let sensitive = is_sensitive_key(&entry.key);
             KeyValueRecord {
                 enabled: entry.enabled,
                 key: entry.key.clone(),
@@ -285,6 +292,15 @@ pub fn redact_entries(entries: &[KeyValueRecord]) -> Vec<KeyValueRecord> {
             }
         })
         .collect()
+}
+
+fn is_sensitive_key(key: &str) -> bool {
+    let normalized = key.trim().to_ascii_lowercase().replace('_', "-");
+    SENSITIVE_KEYS.contains(&normalized.as_str())
+        || normalized.ends_with("-password")
+        || normalized.ends_with("-secret")
+        || normalized.ends_with("-token")
+        || normalized.ends_with("-api-key")
 }
 
 pub fn truncate_body(body: &str) -> (String, bool) {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-move-request"
+description = "Enables the move_request command without any pre-configured scope."
+commands.allow = ["move_request"]
+
+[[permission]]
+identifier = "deny-move-request"
+description = "Denies the move_request command without any pre-configured scope."
+commands.deny = ["move_request"]

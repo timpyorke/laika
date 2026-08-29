@@ -26,7 +26,7 @@ fn default_max_response_bytes() -> u64 {
     DEFAULT_MAX_RESPONSE_BYTES
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HttpRequestInput {
     pub request_id: String,
@@ -90,7 +90,7 @@ impl From<HttpMethod> for Method {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyValueEntry {
     pub enabled: bool,
@@ -98,7 +98,7 @@ pub struct KeyValueEntry {
     pub value: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(tag = "mode", rename_all = "camelCase")]
 pub enum RequestBody {
     None,
@@ -107,7 +107,7 @@ pub enum RequestBody {
     Form { entries: Vec<KeyValueEntry> },
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RequestAuth {
     None,
@@ -135,7 +135,6 @@ pub struct ResponseHeader {
     pub value: String,
 }
 
-#[derive(Debug)]
 struct ValidatedRequest {
     request_id: String,
     method: Method,
@@ -412,12 +411,12 @@ mod tests {
     fn rejects_non_http_and_credential_urls() {
         let ftp = request("ftp://example.com/file".to_owned());
         assert!(matches!(
-            validate_request(ftp).unwrap_err().code,
+            validate_request(ftp).err().unwrap().code,
             ApplicationErrorCode::InvalidUrl
         ));
         let credentials = request("https://user:secret@example.com".to_owned());
         assert!(matches!(
-            validate_request(credentials).unwrap_err().code,
+            validate_request(credentials).err().unwrap().code,
             ApplicationErrorCode::InvalidUrl
         ));
     }
@@ -428,7 +427,7 @@ mod tests {
         invalid_json.body = RequestBody::Json {
             content: "{secret".to_owned(),
         };
-        let error = validate_request(invalid_json).unwrap_err();
+        let error = validate_request(invalid_json).err().unwrap();
         assert!(matches!(error.code, ApplicationErrorCode::InvalidBody));
         assert!(!error.message.contains("secret"));
 
@@ -438,7 +437,7 @@ mod tests {
             key: "Authorization\nInjected".to_owned(),
             value: "Bearer secret".to_owned(),
         });
-        let error = validate_request(invalid_header).unwrap_err();
+        let error = validate_request(invalid_header).err().unwrap();
         assert!(matches!(error.code, ApplicationErrorCode::InvalidHeader));
         assert!(!error.message.contains("secret"));
     }

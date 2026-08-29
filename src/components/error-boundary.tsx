@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 import { Button } from "./ui/button";
 
 interface Props { children: ReactNode; }
@@ -9,8 +9,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(): State { return { hasError: true }; }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Application render error", error, info.componentStack);
+  componentDidCatch() {
+    // Error objects and component stacks can contain request values. Keep the
+    // local diagnostic deliberately generic until opt-in redacted diagnostics exist.
+    console.error("Application render error");
   }
 
   render() {

@@ -31,7 +31,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 3 | Local Workspace | Collections and history are stored in SQLite | Complete |
 | 4 | Environments and Secrets | Variables and authentication secrets are handled securely | Complete |
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Complete |
-| 6 | API Testing | Users can create assertions and run test cases | Planned |
+| 6 | API Testing | Users can create assertions and run test cases | Complete |
 | 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | Planned |
 
 Checklist convention:
@@ -279,21 +279,37 @@ Goal: Extend the REST client to support repeatable API checks.
 
 ### Checklist
 
-- [ ] Create an assertion model for status, headers, JSON paths, and response time.
-- [ ] Create a test result view with pass/fail status and failure details.
-- [ ] Add a collection runner with sequential execution.
-- [ ] Support environment selection for test runs.
-- [ ] Add run summaries and persisted test results.
-- [ ] Export machine-readable results for CI.
-- [ ] Design a shared core contract for a CLI companion.
-- [ ] Evaluate pre-request and post-response scripting with a defined security boundary.
+- [x] Create an assertion model for status, headers, JSON paths, and response time.
+- [x] Create a test result view with pass/fail status and failure details.
+- [x] Add a collection runner with sequential execution.
+- [x] Support environment selection for test runs.
+- [x] Add run summaries and persisted test results.
+- [x] Export machine-readable results for CI.
+- [x] Design a shared core contract for a CLI companion.
+- [x] Evaluate pre-request and post-response scripting with a defined security boundary.
 
 ### Definition of Done
 
-- [ ] Assertions can be attached to a request and every assertion result is visible.
-- [ ] Collection runs produce reproducible summaries.
-- [ ] Failures identify the expected value, actual value, and related request.
-- [ ] Test result exports can be used in automation.
+- [x] Assertions can be attached to a request and every assertion result is visible.
+- [x] Collection runs produce reproducible summaries.
+- [x] Failures identify the expected value, actual value, and related request.
+- [x] Test result exports can be used in automation.
+
+### Implementation Notes
+
+- Migration `0003` stores request assertions plus bounded run summaries and
+  per-request results. The newest 100 runs are retained per workspace.
+- Assertions cover status codes, response headers, JSON paths, and response
+  time, with variables and secrets resolved only immediately before execution.
+- The Rust runner executes collection requests sequentially against an explicit
+  environment snapshot. Assertion evaluation and result contracts are kept in a
+  Tauri-independent module so a future CLI can reuse them.
+- Every failure records its request, expected value, actual value, and message.
+  Persisted values are redacted and size-limited before entering SQLite.
+- Runs can be exported as a versioned JSON report suitable for CI ingestion.
+- A scripting runtime remains deferred. Its proposed capability model, resource
+  limits, and secret boundary are documented in the
+  [scripting security evaluation](scripting-security.md).
 
 ## Phase 7: Release Readiness
 
@@ -343,8 +359,8 @@ pnpm tauri build
 
 ## Immediate Next Milestone
 
-Begin Phase 6 by defining the assertion contract and result model before adding
-the collection runner and persisted run summaries.
+Begin Phase 7 with production metadata, CI quality gates, and a documented
+release checklist before adding signing and update channels.
 
 ## Scope Control
 

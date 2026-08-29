@@ -2,6 +2,7 @@ use crate::error::ApplicationError;
 use crate::http::{HttpRequestInput, RequestAuth, RequestBody};
 use crate::secrets::SecretStore;
 use crate::store::models::StoredVariable;
+use crate::testing::RequestAssertion;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub fn resolve_request(
@@ -48,6 +49,32 @@ pub fn resolve_request(
         }
     }
 
+    if resolver.missing.is_empty() {
+        Ok(resolver.used_secrets.into_iter().collect())
+    } else {
+        Err(ApplicationError::unresolved_variables(
+            &resolver.missing.into_iter().collect::<Vec<_>>(),
+        ))
+    }
+}
+
+pub fn resolve_assertions(
+    assertions: &mut [RequestAssertion],
+    variables: &BTreeMap<String, StoredVariable>,
+    secrets: &SecretStore,
+) -> Result<Vec<String>, ApplicationError> {
+    let mut resolver = Resolver {
+        variables,
+        secrets,
+        memo: BTreeMap::new(),
+        resolving: BTreeSet::new(),
+        missing: BTreeSet::new(),
+        used_secrets: BTreeSet::new(),
+    };
+    for assertion in assertions {
+        assertion.target = resolver.text(&assertion.target)?;
+        assertion.expected = resolver.text(&assertion.expected)?;
+    }
     if resolver.missing.is_empty() {
         Ok(resolver.used_secrets.into_iter().collect())
     } else {

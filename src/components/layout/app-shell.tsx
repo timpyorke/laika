@@ -1,10 +1,11 @@
-import { Box, Clock3, Code2, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings2, Sun, Variable, X } from "lucide-react";
+import { Box, Clock3, Code2, FlaskConical, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings2, Sun, Variable, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CollectionsSidebar, SaveRequestDialog } from "../../features/collections";
 import { EnvironmentDialog } from "../../features/environments";
 import { HistoryPanel } from "../../features/history";
 import { RequestWorkspace } from "../../features/request";
 import { ResponsePanel } from "../../features/response";
+import { TestRunnerPanel } from "../../features/testing";
 import { useAppStore } from "../../store/use-app-store";
 import { methodColor } from "../../lib/http-display";
 import { cn } from "../../lib/utils";
@@ -148,15 +149,19 @@ export function AppShell() {
             <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--surface)]" aria-label="Workspace navigation">
               <Tabs defaultValue="collections" className="flex min-h-0 flex-1 flex-col">
                 <TabsList className="px-2" aria-label="Workspace sections">
-                  <TabsTrigger className="flex flex-1 items-center justify-center gap-2 px-1" value="collections">
-                    <Box size={14} /> Collections
+                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="collections">
+                    <Box size={14} /> Saved
                   </TabsTrigger>
-                  <TabsTrigger className="flex flex-1 items-center justify-center gap-2 px-1" value="history">
+                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="history">
                     <Clock3 size={14} /> History
+                  </TabsTrigger>
+                  <TabsTrigger className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 text-xs" value="runs">
+                    <FlaskConical size={14} /> Runs
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="collections" className="flex min-h-0 flex-col"><CollectionsSidebar /></TabsContent>
                 <TabsContent value="history" className="flex min-h-0 flex-col"><HistoryPanel /></TabsContent>
+                <TabsContent value="runs" className="flex min-h-0 flex-col"><TestRunnerPanel /></TabsContent>
               </Tabs>
             </aside>
           </ResizablePanel>

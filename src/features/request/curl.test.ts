@@ -6,7 +6,7 @@ const draft = (): RequestDraft => ({
   id: "draft", name: "Create", savedRequestId: null, collectionId: null, folderId: null,
   method: "POST", url: "https://api.example.com/users", params: [{ id: "p", enabled: true, key: "preview", value: "true" }],
   headers: [{ id: "h", enabled: true, key: "X-Api-Key", value: "must-not-export" }], bodyMode: "json", body: '{"name":"Laika"}', form: [],
-  auth: { type: "bearer", bearerToken: "must-not-export", username: "", password: "", hasStoredSecret: false }, timeoutMs: 30_000,
+  auth: { type: "bearer", bearerToken: "must-not-export", username: "", password: "", hasStoredSecret: false }, timeoutMs: 30_000, assertions: [],
 });
 
 describe("cURL workflows", () => {

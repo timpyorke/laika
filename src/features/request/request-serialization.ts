@@ -81,6 +81,7 @@ export function serializeSaveRequest(
         ? (draft.auth.hasStoredSecret && draft.auth.password === "" ? null : draft.auth.password)
         : null,
     timeoutMs: draft.timeoutMs,
+    assertions: draft.assertions,
   };
 }
 
@@ -106,6 +107,7 @@ export function draftFromSavedRequest(saved: SavedRequest): RequestDraft {
       hasStoredSecret: saved.hasAuthSecret,
     },
     timeoutMs: saved.timeoutMs,
+    assertions: saved.assertions,
   };
 }
 
@@ -132,5 +134,6 @@ export function draftFromHistoryEntry(entry: HistoryEntry): RequestDraft {
     form: rowsOrBlank(request.form),
     auth: { type: authType, bearerToken: "", username: request.authUsername, password: "", hasStoredSecret: false },
     timeoutMs: request.timeoutMs,
+    assertions: [],
   };
 }

@@ -82,6 +82,6 @@ export function parseCurl(input: string): RequestDraft {
   return {
     id: crypto.randomUUID(), name: "Imported cURL", savedRequestId: null, collectionId: null, folderId: null,
     method, url: parsed.toString(), params: params.length ? params : [row()], headers: headers.length ? headers : [row()],
-    body, bodyMode, form: form.length ? form : [row()], auth, timeoutMs: 30_000,
+    body, bodyMode, form: form.length ? form : [row()], auth, timeoutMs: 30_000, assertions: [],
   };
 }

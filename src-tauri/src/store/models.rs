@@ -1,4 +1,5 @@
 use crate::error::ApplicationError;
+use crate::testing::RequestAssertion;
 use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqliteRow, Row};
 
@@ -179,6 +180,7 @@ pub struct SavedRequest {
     #[serde(skip)]
     pub auth_secret_ref: Option<String>,
     pub timeout_ms: i64,
+    pub assertions: Vec<RequestAssertion>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -206,6 +208,8 @@ pub struct SaveRequestInput {
     #[serde(skip)]
     pub auth_secret_ref: Option<String>,
     pub timeout_ms: i64,
+    #[serde(default)]
+    pub assertions: Vec<RequestAssertion>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -382,6 +386,8 @@ pub fn map_saved_request(row: &SqliteRow) -> SavedRequest {
         has_auth_secret: auth_secret_ref.is_some(),
         auth_secret_ref,
         timeout_ms: row.get("timeout_ms"),
+        assertions: serde_json::from_str(row.get::<String, _>("assertions_json").as_str())
+            .unwrap_or_default(),
     }
 }
 

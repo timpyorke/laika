@@ -6,7 +6,7 @@ The product direction is similar to a lightweight API workspace: start with a re
 
 ## Current Status
 
-Phases 0 through 5 of [docs/plan.md](docs/plan.md) are complete.
+Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete.
 
 Implemented:
 
@@ -30,10 +30,14 @@ Implemented:
   compact-window layout
 - Credential-redacted cURL generation, cURL import, and secret-free collection
   import/export
+- Request assertions for status, headers, JSON paths, and response time
+- Sequential collection runs with explicit environment selection, persisted
+  summaries, detailed failures, and machine-readable JSON export
 
 Not implemented yet:
 
-- API testing assertions and a collection runner
+- Production release automation, signing, and update channels
+- A scripting runtime and CLI companion
 
 ## Tech Stack
 
@@ -60,7 +64,7 @@ Current:
 ├── src/                     React frontend source
 │   ├── components/          App shell, layout, and shared UI primitives
 │   ├── features/            Feature modules: request, response, collections,
-│   │                        history, environments
+│   │                        history, environments, testing
 │   ├── lib/                 Error contract and display helpers
 │   ├── store/               Zustand application store
 │   ├── types/               Shared HTTP and workspace contracts
@@ -74,6 +78,7 @@ Current:
 │   ├── src/
 │   │   ├── error.rs         Shared user-facing error contract
 │   │   ├── http.rs          HTTP engine built on reqwest
+│   │   ├── testing.rs       CLI-safe assertion and test-result contracts
 │   │   ├── secrets.rs       Stronghold-backed encrypted secret vault
 │   │   ├── variables.rs     Request variable resolution and validation
 │   │   ├── store/           SQLite repository layer and Tauri commands
@@ -191,6 +196,14 @@ Typical Windows artifacts:
 - cURL and collection import/export
 - Monaco request/response editing and response search
 
+### V0.3: API Testing
+
+- Request assertions for status, headers, JSON paths, and response time
+- Sequential collection runner with environment selection
+- Persisted run summaries and detailed assertion failures
+- Versioned machine-readable JSON result export
+- Shared Rust contracts ready for reuse by a future CLI
+
 ## Local Data
 
 The workspace database is created on first launch at:
@@ -199,15 +212,15 @@ The workspace database is created on first launch at:
 %APPDATA%\com.codenour.laika\laika.db
 ```
 
-It stores collections, folders, saved requests, environments, opaque secret
-references, and history. Authentication tokens, passwords, and secret variable
-values are stored in `laika.stronghold`, never as plaintext in SQLite.
+It stores collections, folders, saved requests and assertions, environments,
+opaque secret references, history, and bounded test-run results. Authentication
+tokens, passwords, and secret variable values are stored in `laika.stronghold`,
+never as plaintext in SQLite.
 Credential values are redacted before history is saved. Deleting both local
 files resets the workspace and vault.
 
 ### Later
 
-- API testing assertions
 - Multiple workspaces
 - CLI companion
 - Request scripting and pre-request hooks

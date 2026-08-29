@@ -6,8 +6,11 @@ the deferred CLI, scripting, or additional protocol clients.
 
 ## Current Status
 
-Phase 7E privacy-safe diagnostics were completed on 2026-08-29. The
-recommended next task is Phase 7F user documentation and release validation.
+Phase 7E privacy-safe diagnostics were completed on 2026-08-29. Phase 7F's
+documentation deliverables (quick start, known limitations/recovery, and the
+smoke-test script) were completed the same day; running that script on a
+clean Windows VM for an actual release candidate is still open. 7G's
+distribution decisions can proceed in parallel with that VM validation.
 
 ### Completed 7D Scope
 
@@ -73,16 +76,25 @@ diagnostics data-classification entry and adversarial-redaction control in
 
 ### 7F. User Documentation and Release Validation
 
-**Outcome:** A new user can install Laika and complete the core workflow, while
-maintainers can repeat clean-machine validation.
+**Status: Documentation complete; VM validation pending.** A new user can
+install Laika and complete the core workflow by following the docs below.
+Actually exercising [smoke-test.md](smoke-test.md) on a clean Windows VM for
+a real release candidate is a manual step that still needs to happen before
+Phase 7's definition of done is met.
 
-1. Write a quick start for install, first request, save/reopen, environments,
-   secrets, collection runs, backup, restore, and uninstall data retention.
-2. Document known limitations and recovery/rollback steps.
-3. Create a manual smoke-test script for clean Windows VMs covering NSIS and
-   MSI install, restart persistence, backup/restore, upgrade, and uninstall.
-4. Test both an empty workspace and a workspace containing an initialized vault.
-5. Record evidence for each release candidate in the release checklist.
+1. [x] Write a quick start for install, first request, save/reopen,
+   environments, secrets, collection runs, backup, restore, and uninstall
+   data retention — [quick-start.md](quick-start.md).
+2. [x] Document known limitations and recovery/rollback steps —
+   [known-limitations.md](known-limitations.md).
+3. [x] Create a manual smoke-test script for clean Windows VMs covering NSIS
+   and MSI install, restart persistence, backup/restore, upgrade, and
+   uninstall — [smoke-test.md](smoke-test.md).
+4. [ ] Test both an empty workspace and a workspace containing an initialized
+   vault. The script covers both; it has not yet been run on a clean VM.
+5. [x] Record evidence for each release candidate in the release checklist —
+   see the Clean-machine validation evidence table in
+   [release-checklist.md](release-checklist.md).
 
 **Depends on:** Diagnostic UX being stable enough to document.
 

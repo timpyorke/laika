@@ -7,8 +7,11 @@ The product direction is similar to a lightweight API workspace: start with a re
 ## Current Status
 
 Phases 0 through 6 of [docs/plan.md](docs/plan.md) are complete. Phase 7 release
-readiness is in progress, with the release foundation, workspace recovery, and
-security/privacy review implemented.
+readiness is in progress, with the release foundation, workspace recovery,
+security/privacy review, performance baselines, and opt-in diagnostics
+implemented.
+
+New to Laika? Start with [docs/quick-start.md](docs/quick-start.md).
 
 Implemented:
 
@@ -46,12 +49,14 @@ Implemented:
   dependency audits, expanded credential redaction, and timed secret clipboard clearing
 - Reproducible Windows performance baselines for workspace storage, history,
   large responses, cancellation, and process memory
+- Opt-in, local-only diagnostics with an allowlisted event schema and an
+  explicit export action — never a URL, header, body, or secret
 
 Not implemented yet:
 
 - Windows code signing and updater release channels
-- Opt-in privacy-safe diagnostics
-- Clean-machine release validation and complete user documentation
+- Clean-machine release validation on real VMs (the script to run it exists;
+  see [docs/smoke-test.md](docs/smoke-test.md))
 - A scripting runtime and CLI companion
 
 ## Tech Stack
@@ -233,6 +238,27 @@ recovery behavior, and backup format contract.
 
 See [docs/security-and-privacy.md](docs/security-and-privacy.md) for the trust
 boundaries, secret flows, implemented controls, and residual risks.
+
+## Documentation
+
+- [docs/quick-start.md](docs/quick-start.md) — first-run walkthrough: install,
+  send a request, save, environments, secrets, collection runs, backup,
+  diagnostics, and uninstall data retention.
+- [docs/known-limitations.md](docs/known-limitations.md) — what Laika doesn't
+  do yet, and recovery/rollback steps if install, upgrade, or restore fail.
+- [docs/backup-and-recovery.md](docs/backup-and-recovery.md) — backup format,
+  restore workflow, and automatic recovery snapshots.
+- [docs/security-and-privacy.md](docs/security-and-privacy.md) — trust
+  boundaries, data classification, implemented controls, residual risks.
+- [docs/smoke-test.md](docs/smoke-test.md) — manual clean-machine VM
+  validation script run before every release.
+- [docs/architecture.md](docs/architecture.md) — target system architecture.
+- [docs/plan.md](docs/plan.md) and [docs/next-roadmap.md](docs/next-roadmap.md)
+  — phase-by-phase delivery plan and current status.
+- [docs/versioning.md](docs/versioning.md) and
+  [docs/release-checklist.md](docs/release-checklist.md) — release identity,
+  versioning policy, and the publication checklist.
+- [docs/performance.md](docs/performance.md) — baselines and budgets.
 
 ## Roadmap
 

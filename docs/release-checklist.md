@@ -1,8 +1,8 @@
 # Release Checklist
 
-Use this checklist for every Laika release candidate. The release foundation
-and recovery workflow are implemented; unchecked signing, updater, diagnostics,
-and clean-machine validation remain publication blockers.
+Use this checklist for every Laika release candidate. The release foundation,
+recovery workflow, and opt-in diagnostics are implemented; unchecked signing,
+updater, and clean-machine validation remain publication blockers.
 
 ## Release candidate
 
@@ -55,12 +55,25 @@ and clean-machine validation remain publication blockers.
 
 ## Clean-machine validation
 
+Run [smoke-test.md](smoke-test.md) once per installer, each from a fresh VM
+snapshot, covering both an empty workspace and a vault-initialized workspace.
+Record evidence for this exact release commit below before checking these off
+— Windows build, Laika version, installer type, pass/fail per section, and
+any deviation.
+
 - [ ] Install with NSIS on a supported clean Windows machine.
 - [ ] Install with MSI on a supported clean Windows machine.
 - [ ] Open Laika, send a request, save it, restart, and confirm persistence.
 - [ ] Upgrade from the previous stable version and confirm workspace integrity.
 - [ ] Uninstall and confirm the application binaries are removed.
 - [ ] Confirm the documented local-data retention behavior after uninstall.
+
+**Evidence for this release candidate:**
+
+| Installer | Windows build | Laika version | Result | Notes |
+| --- | --- | --- | --- | --- |
+| NSIS | | | | |
+| MSI | | | | |
 
 ## Documentation and publication
 

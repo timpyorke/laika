@@ -326,7 +326,7 @@ Goal: Prepare the app for distribution and long-term maintenance.
 - [x] Add performance tests for history/database operations and large responses.
 - [x] Add opt-in crash/error diagnostics with no sensitive data.
 - [x] Write a release checklist.
-- [ ] Write complete user documentation.
+- [x] Write complete user documentation.
 
 ### Definition of Done
 
@@ -381,6 +381,16 @@ Goal: Prepare the app for distribution and long-term maintenance.
   recorded locally in SQLite for HTTP requests, collection runs, and
   backup/restore, retained newest 500 per workspace, and only leave the
   device through an explicit "Export diagnostics…" action in Settings.
+- User documentation covers the full workflow from install through uninstall:
+  [quick-start.md](quick-start.md) (first run through diagnostics and data
+  retention) and [known-limitations.md](known-limitations.md) (what isn't
+  built yet, plus install/upgrade/restore recovery steps). A manual
+  [smoke-test.md](smoke-test.md) script exercises NSIS and MSI install,
+  restart persistence, backup/restore, upgrade, and uninstall against both an
+  empty workspace and a vault-initialized one; its evidence table lives in
+  [release-checklist.md](release-checklist.md). The script itself is written,
+  but has not yet been executed on a clean VM for a release candidate — that
+  remains open under the Phase 7 definition of done.
 
 ## Cross-Phase Quality Gates
 

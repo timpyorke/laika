@@ -1,7 +1,7 @@
 use super::models::encode_json;
 use super::{map_sqlx_error, Store};
 use crate::error::ApplicationError;
-use crate::testing::{AssertionResult, TestCaseResult, TestRun, TestRunSummary};
+use crate::testing::{AssertionResult, ExtractionResult, TestCaseResult, TestRun, TestRunSummary};
 use sqlx::Row;
 
 impl Store {
@@ -34,8 +34,9 @@ impl Store {
             sqlx::query(
                 "INSERT INTO test_case_result (
                      id, run_id, request_id, request_name, method, url, status,
-                     response_status, elapsed_ms, error_code, assertion_results_json, position
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                     response_status, elapsed_ms, error_code, assertion_results_json,
+                     extraction_results_json, position
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(&result.id)
             .bind(&run.summary.id)
@@ -52,6 +53,7 @@ impl Store {
             )
             .bind(&result.error_code)
             .bind(encode_json(&result.assertion_results)?)
+            .bind(encode_json(&result.extraction_results)?)
             .bind(result.position)
             .execute(&mut *tx)
             .await
@@ -108,6 +110,10 @@ impl Store {
                 error_code: row.get("error_code"),
                 assertion_results: serde_json::from_str::<Vec<AssertionResult>>(
                     row.get::<String, _>("assertion_results_json").as_str(),
+                )
+                .unwrap_or_default(),
+                extraction_results: serde_json::from_str::<Vec<ExtractionResult>>(
+                    row.get::<String, _>("extraction_results_json").as_str(),
                 )
                 .unwrap_or_default(),
                 position: row.get("position"),

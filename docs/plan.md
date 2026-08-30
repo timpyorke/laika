@@ -33,7 +33,7 @@ Laika is designed for composing, sending, inspecting, and organizing HTTP API re
 | 5 | Workflow Polish | Everyday workflows are fast and data management is more complete | Complete |
 | 6 | API Testing | Users can create assertions and run test cases | Complete |
 | 7 | Release Readiness | The app can be distributed, used, and upgraded with confidence | In Progress |
-| 8 | Request Chaining and Discovery | Requests can depend on each other's output and users can find things faster | Not Started |
+| 8 | Request Chaining and Discovery | Requests can depend on each other's output and users can find things faster | In Progress |
 
 Checklist convention:
 
@@ -410,13 +410,14 @@ rather than opening any of the areas the Scope Control section still defers.
 
 ### Checklist
 
-- [ ] Add response-to-variable extraction: capture a JSON path, header, or
+- [x] Add response-to-variable extraction: capture a JSON path, header, or
       status code from a response and write it into an environment or
       workspace variable.
-- [ ] Support that extraction inside a collection run, so a later request in
+- [x] Support that extraction inside a collection run, so a later request in
       the run can resolve a variable an earlier request just set.
 - [ ] Show unresolved or stale chained variables before a run continues,
-      consistent with the existing unresolved-variable safeguard.
+      consistent with the existing unresolved-variable safeguard. Unresolved
+      is done; stale is deferred (see Implementation Notes).
 - [ ] Add response diffing: compare the current response against the most
       recent history entry for the same request (status, headers, body).
 - [ ] Import OpenAPI 3.x and Swagger 2.0 specifications into a new collection,
@@ -428,9 +429,9 @@ rather than opening any of the areas the Scope Control section still defers.
 
 ### Definition of Done
 
-- [ ] A collection run can pass a value extracted from one request's response
+- [x] A collection run can pass a value extracted from one request's response
       into a later request's URL, headers, or body via a variable.
-- [ ] Chained secret-marked variables follow the same masking and redaction
+- [x] Chained secret-marked variables follow the same masking and redaction
       rules as manually entered secrets.
 - [ ] Response diffing highlights additions, removals, and changes between
       the current and previous response for the same request.
@@ -438,7 +439,7 @@ rather than opening any of the areas the Scope Control section still defers.
       request data can be reopened and edited like any other saved request.
 - [ ] The command palette can complete the compose/find/switch workflow
       without the mouse.
-- [ ] `pnpm build`, `pnpm test`, `cargo fmt`, `cargo clippy`, and
+- [x] `pnpm build`, `pnpm test`, `cargo fmt`, `cargo clippy`, and
       `cargo test` all pass with the new functionality.
 
 ### Scope Note
@@ -447,6 +448,40 @@ This phase does not revisit the Scope Control list below. Cloud sync, team
 collaboration, a plugin marketplace, GraphQL/gRPC/WebSocket clients, a full
 scripting runtime, and a CLI remain deferred until there is real usage
 feedback on the local REST workflow to reassess them against.
+
+### Implementation Notes
+
+- Slice 1 (request chaining) is complete; response diffing, OpenAPI import,
+  the command palette, and assertions referencing chained variables remain.
+- Extracted values are **run-scoped only**: `run_collection_core`
+  (`src-tauri/src/store/commands.rs`) inserts each extraction's result into
+  the in-memory `BTreeMap<String, StoredVariable>` snapshot for that run and
+  never writes to the `environment_variable` table. This was a deliberate
+  scope cut from an earlier hybrid design that also supported opting a rule
+  into persistence (enabling "stale" detection) — dropped because the
+  codebase has no existing precedent for a test run mutating persisted
+  workspace config, and the simpler design still satisfies the Definition of
+  Done. Persistence can be revisited later behind its own opt-in if usage
+  shows a need for values to survive across runs.
+- A new `src-tauri/src/chaining.rs` module (pure, no Tauri/DB deps, mirroring
+  `variables.rs`/`testing.rs`) statically scans a saved request's URL,
+  enabled params/headers, body, enabled form rows, and assertion
+  target/expected fields for `{{name}}` references, and a new
+  `preflight_collection_run` command reports any name no earlier request in
+  the run either defines or extracts. A `{{name}}` embedded in a saved auth
+  secret is invisible to this static scan (only an opaque `secret_ref` is
+  stored); such cases still fail via the existing `UnresolvedVariables`
+  pre-flight error at execution time.
+- A secret-marked extraction writes through `SecretStore::put` for the
+  duration of the run and is deleted again once the run finishes, so chained
+  secrets get the same resolution-time masking/redaction as any manually
+  entered secret without leaving a lingering Stronghold entry.
+- `VariableExtraction`/`ExtractionResult` live in `src-tauri/src/testing.rs`
+  next to `RequestAssertion`, follow the same camelCase contract mirroring
+  convention into `src/types/testing.ts`, and are persisted per saved request
+  via a new `extractions_json` column (migration `0005`); a companion
+  `extraction_results_json` column on `test_case_result` preserves them in
+  past run history the same way `assertion_results_json` does.
 
 ## Cross-Phase Quality Gates
 

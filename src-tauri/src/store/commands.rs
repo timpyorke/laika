@@ -11,18 +11,19 @@ use super::history::{HistoryDraft, HistoryResponse};
 use super::models::{
     Collection, Environment, EnvironmentState, EnvironmentVariable, Folder, HistoryEntry,
     HistorySummary, KeyValueRecord, PersistVariableInput, RequestSnapshot, RequestSummary,
-    SaveRequestCommandInput, SaveVariableInput, SavedRequest, WorkspaceTree,
+    SaveRequestCommandInput, SaveVariableInput, SavedRequest, StoredVariable, WorkspaceTree,
 };
 use super::StoreHandle;
 use crate::backup::BackupService;
+use crate::chaining::{self, ChainPreflightReport};
 use crate::error::ApplicationError;
 use crate::http::{
     HttpEngine, HttpRequestInput, HttpResponseOutput, KeyValueEntry, RequestAuth, RequestBody,
 };
 use crate::secrets::{SecretStore, SecretStoreStatus};
 use crate::testing::{
-    evaluate_assertions, AssertionResult, RunCollectionInput, TestCaseResult, TestRun,
-    TestRunSummary,
+    evaluate_assertions, evaluate_extractions, AssertionResult, ExtractionResult,
+    RunCollectionInput, TestCaseResult, TestRun, TestRunSummary,
 };
 use crate::variables::{resolve_assertions, resolve_request};
 use std::time::Instant;
@@ -487,7 +488,7 @@ pub(crate) async fn run_collection_core(
     let environment_name = repository
         .environment_name(input.environment_id.as_deref())
         .await?;
-    let variables = repository
+    let mut variables = repository
         .effective_variables_for_environment(input.environment_id.as_deref())
         .await?;
     let requests = repository.collection_requests(&input.collection_id).await?;
@@ -496,6 +497,7 @@ pub(crate) async fn run_collection_core(
     }
     let started = Instant::now();
     let mut results = Vec::with_capacity(requests.len());
+    let mut ephemeral_secret_refs: Vec<String> = Vec::new();
 
     for (position, saved) in requests.into_iter().enumerate() {
         let request_name = saved.name.clone();
@@ -528,6 +530,46 @@ pub(crate) async fn run_collection_core(
                     let mut assertion_results = evaluate_assertions(&assertions, &response);
                     redact_assertion_results(&mut assertion_results, &redactions);
                     let passed = assertion_results.iter().all(|assertion| assertion.passed);
+                    let mut extraction_results = Vec::with_capacity(saved.extractions.len());
+                    for (rule, raw) in evaluate_extractions(&saved.extractions, &response) {
+                        match raw {
+                            Some(raw_value) => {
+                                let value_preview = if rule.is_secret {
+                                    None
+                                } else {
+                                    Some(bounded_text(&redact_text(&raw_value, &redactions)))
+                                };
+                                let stored = if rule.is_secret {
+                                    let secret_ref = secrets.put(None, &raw_value)?;
+                                    ephemeral_secret_refs.push(secret_ref.clone());
+                                    StoredVariable {
+                                        value: String::new(),
+                                        is_secret: true,
+                                        secret_ref: Some(secret_ref),
+                                    }
+                                } else {
+                                    StoredVariable {
+                                        value: raw_value,
+                                        is_secret: false,
+                                        secret_ref: None,
+                                    }
+                                };
+                                variables.insert(rule.variable_name.clone(), stored);
+                                extraction_results.push(ExtractionResult {
+                                    extraction_id: rule.id,
+                                    variable_name: rule.variable_name,
+                                    found: true,
+                                    value_preview,
+                                });
+                            }
+                            None => extraction_results.push(ExtractionResult {
+                                extraction_id: rule.id,
+                                variable_name: rule.variable_name,
+                                found: false,
+                                value_preview: None,
+                            }),
+                        }
+                    }
                     let _ = repository
                         .record_execution(
                             history_draft,
@@ -545,6 +587,7 @@ pub(crate) async fn run_collection_core(
                         elapsed_ms: Some(response.elapsed_ms),
                         error_code: None,
                         assertion_results,
+                        extraction_results,
                         position: position as i64,
                     }
                 }
@@ -574,6 +617,10 @@ pub(crate) async fn run_collection_core(
             ),
         };
         results.push(result);
+    }
+
+    for secret_ref in ephemeral_secret_refs {
+        let _ = secrets.delete(&secret_ref);
     }
 
     let passed_requests = results
@@ -620,6 +667,32 @@ pub(crate) async fn run_collection_core(
         .await;
     repository.save_test_run(&run).await?;
     Ok(run)
+}
+
+/// Read-only check for whether every `{{variable}}` a collection's requests
+/// reference will actually be available when its turn comes to run — either
+/// already defined, or extracted by an earlier request in the same run.
+/// Performs no execution and no writes, so it's safe to call before every run
+/// and on every editor change.
+#[tauri::command]
+pub async fn preflight_collection_run(
+    store: State<'_, StoreHandle>,
+    input: RunCollectionInput,
+) -> Result<ChainPreflightReport, ApplicationError> {
+    preflight_collection_run_core(store.get()?, input).await
+}
+
+pub(crate) async fn preflight_collection_run_core(
+    repository: &super::Store,
+    input: RunCollectionInput,
+) -> Result<ChainPreflightReport, ApplicationError> {
+    let variables = repository
+        .effective_variables_for_environment(input.environment_id.as_deref())
+        .await?;
+    let requests = repository.collection_requests(&input.collection_id).await?;
+    Ok(ChainPreflightReport {
+        warnings: chaining::preflight(&requests, &variables),
+    })
 }
 
 #[tauri::command]
@@ -716,6 +789,7 @@ fn failed_case(
         elapsed_ms: None,
         error_code: Some(error.code.as_str().to_owned()),
         assertion_results: Vec::new(),
+        extraction_results: Vec::new(),
         position: position as i64,
     }
 }

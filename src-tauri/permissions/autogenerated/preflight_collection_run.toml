@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-preflight-collection-run"
+description = "Enables the preflight_collection_run command without any pre-configured scope."
+commands.allow = ["preflight_collection_run"]
+
+[[permission]]
+identifier = "deny-preflight-collection-run"
+description = "Denies the preflight_collection_run command without any pre-configured scope."
+commands.deny = ["preflight_collection_run"]

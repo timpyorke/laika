@@ -1,4 +1,5 @@
 mod backup;
+mod chaining;
 mod error;
 mod http;
 #[cfg(feature = "performance")]
@@ -75,6 +76,7 @@ pub fn run() {
             commands::unlock_secret_store,
             commands::lock_secret_store,
             commands::run_collection,
+            commands::preflight_collection_run,
             commands::list_test_runs,
             commands::get_test_run,
             commands::get_diagnostics_settings,

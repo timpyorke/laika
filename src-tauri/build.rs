@@ -32,6 +32,7 @@ fn main() {
         "unlock_secret_store",
         "lock_secret_store",
         "run_collection",
+        "preflight_collection_run",
         "list_test_runs",
         "get_test_run",
         "get_diagnostics_settings",

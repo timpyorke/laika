@@ -10,7 +10,7 @@ import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store/use-app-store";
 import { AUTH_TYPES, BODY_MODES, HTTP_METHODS, type AuthType, type BodyMode, type HttpMethod, type RequestEditorTab } from "../../types/http";
 import { CurlDialog } from "./curl-dialog";
-import { AssertionEditor } from "../testing";
+import { AssertionEditor, ExtractionEditor } from "../testing";
 
 const bodyLabels: Record<BodyMode, string> = { none: "none", json: "JSON", text: "text", form: "form-data" };
 const authLabels: Record<AuthType, string> = { none: "No authentication", bearer: "Bearer token", basic: "Basic auth" };
@@ -141,8 +141,9 @@ export function RequestWorkspace() {
           <TabsTrigger value="body">Body</TabsTrigger>
           <TabsTrigger value="auth">Auth <TabDot color={authDotColor[draft.auth.type]} /></TabsTrigger>
           <TabsTrigger value="tests">Tests</TabsTrigger>
+          <TabsTrigger value="chaining">Chaining</TabsTrigger>
           <span className="ml-auto flex items-center whitespace-nowrap font-mono text-[11px] text-[var(--faint)] max-[1100px]:hidden">
-            {requestTab === "params" ? "Query params" : requestTab === "headers" ? "Request headers" : requestTab === "body" ? `Content: ${bodyLabels[draft.bodyMode]}` : requestTab === "auth" ? authSummary(draft.auth.type) : "Response assertions"}
+            {requestTab === "params" ? "Query params" : requestTab === "headers" ? "Request headers" : requestTab === "body" ? `Content: ${bodyLabels[draft.bodyMode]}` : requestTab === "auth" ? authSummary(draft.auth.type) : requestTab === "chaining" ? "Response chaining" : "Response assertions"}
           </span>
         </TabsList>
 
@@ -247,6 +248,7 @@ export function RequestWorkspace() {
           </div>
         </TabsContent>
         <TabsContent value="tests" className="flex min-h-0 flex-col"><AssertionEditor /></TabsContent>
+        <TabsContent value="chaining" className="flex min-h-0 flex-col"><ExtractionEditor /></TabsContent>
       </Tabs>
       <CurlDialog open={curlDialog !== null} mode={curlDialog ?? "generate"} onOpenChange={(open) => { if (!open) setCurlDialog(null); }} />
     </section>

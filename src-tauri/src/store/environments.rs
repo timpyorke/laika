@@ -256,7 +256,7 @@ impl Store {
     }
 }
 
-fn validate_variable_name(name: &str) -> Result<String, ApplicationError> {
+pub(crate) fn validate_variable_name(name: &str) -> Result<String, ApplicationError> {
     let name = name.trim();
     let mut chars = name.chars();
     let valid_first = chars

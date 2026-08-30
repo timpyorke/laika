@@ -9,10 +9,10 @@ use crate::error::ApplicationErrorCode;
 use crate::http::HttpEngine;
 use crate::secrets::SecretStore;
 use crate::testing::{
-    AssertionKind, AssertionOperator, AssertionResult, RequestAssertion, RunCollectionInput,
-    TestCaseResult, TestRun, TestRunSummary,
+    AssertionKind, AssertionOperator, AssertionResult, ExtractionSource, RequestAssertion,
+    RunCollectionInput, TestCaseResult, TestRun, TestRunSummary, VariableExtraction,
 };
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn entry(key: &str, value: &str) -> KeyValueRecord {
@@ -40,6 +40,7 @@ fn save_input(collection_id: &str, name: &str) -> SaveRequestInput {
         auth_secret_ref: None,
         timeout_ms: 30_000,
         assertions: Vec::new(),
+        extractions: Vec::new(),
     }
 }
 
@@ -280,6 +281,7 @@ async fn saves_request_assertions_and_persisted_run_results() {
                 passed: true,
                 message: "status matched".to_owned(),
             }],
+            extraction_results: Vec::new(),
             position: 0,
         }],
     };
@@ -340,6 +342,254 @@ async fn collection_runner_uses_the_selected_environment_and_persists_results() 
     assert_eq!(run.results[0].response_status, Some(200));
     assert!(run.results[0].assertion_results[0].passed);
     assert_eq!(store.list_test_runs(20).await.unwrap().len(), 1);
+}
+
+fn extraction(
+    source: ExtractionSource,
+    target: &str,
+    variable_name: &str,
+    is_secret: bool,
+) -> VariableExtraction {
+    VariableExtraction {
+        id: format!("extraction-{variable_name}"),
+        source,
+        target: target.to_owned(),
+        variable_name: variable_name.to_owned(),
+        is_secret,
+    }
+}
+
+#[tokio::test]
+async fn collection_run_chains_extracted_variable_into_a_later_request() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/login"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "token": "abc123" })),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/profile"))
+        .and(header("X-Session", "abc123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .mount(&server)
+        .await;
+
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+
+    let mut login = save_input(&collection.id, "Login");
+    login.url = format!("{}/login", server.uri());
+    login.extractions = vec![extraction(
+        ExtractionSource::JsonPath,
+        "$.token",
+        "authToken",
+        false,
+    )];
+    store.save_request(login).await.unwrap();
+
+    let mut profile = save_input(&collection.id, "Profile");
+    profile.url = format!("{}/profile", server.uri());
+    profile.headers = vec![entry("X-Session", "{{authToken}}")];
+    store.save_request(profile).await.unwrap();
+
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    let run = super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &SecretStore::new(&temporary),
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(run.results[0].extraction_results[0].found);
+    assert_eq!(
+        run.results[0].extraction_results[0]
+            .value_preview
+            .as_deref(),
+        Some("abc123")
+    );
+    assert_eq!(run.results[1].response_status, Some(200));
+    assert_eq!(run.summary.status, "passed");
+}
+
+#[tokio::test]
+async fn collection_run_masks_chained_secret_in_later_history_and_results() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/login"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "token": "abc123" })),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/profile"))
+        .and(header("X-Session", "abc123"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "echo": "abc123" })),
+        )
+        .mount(&server)
+        .await;
+
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+
+    let mut login = save_input(&collection.id, "Login");
+    login.url = format!("{}/login", server.uri());
+    login.extractions = vec![extraction(
+        ExtractionSource::JsonPath,
+        "$.token",
+        "authToken",
+        true,
+    )];
+    store.save_request(login).await.unwrap();
+
+    let mut profile = save_input(&collection.id, "Profile");
+    profile.url = format!("{}/profile", server.uri());
+    profile.headers = vec![entry("X-Session", "{{authToken}}")];
+    profile.assertions = vec![RequestAssertion {
+        id: "echo".to_owned(),
+        kind: AssertionKind::JsonPath,
+        operator: AssertionOperator::Equals,
+        target: "$.echo".to_owned(),
+        expected: "abc123".to_owned(),
+    }];
+    store.save_request(profile).await.unwrap();
+
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    std::fs::create_dir_all(&temporary).unwrap();
+    let secrets = SecretStore::new(&temporary);
+    secrets.unlock("correct horse battery staple").unwrap();
+    let run = super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &secrets,
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(run.results[0].extraction_results[0].found);
+    assert_eq!(run.results[0].extraction_results[0].value_preview, None);
+    let assertion_actual = run.results[1].assertion_results[0].actual.as_deref();
+    assert_ne!(assertion_actual, Some("abc123"));
+
+    let history = store.list_history(Some("Profile"), 20, 0).await.unwrap();
+    let entry = store.get_history_entry(&history[0].id).await.unwrap();
+    let body = entry.response_body.unwrap_or_default();
+    assert!(!body.contains("abc123"));
+}
+
+#[tokio::test]
+async fn collection_run_reports_missing_extraction_without_failing_the_request() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/health"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .mount(&server)
+        .await;
+
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let mut input = save_input(&collection.id, "Health");
+    input.url = format!("{}/health", server.uri());
+    input.extractions = vec![extraction(
+        ExtractionSource::JsonPath,
+        "$.missing",
+        "value",
+        false,
+    )];
+    store.save_request(input).await.unwrap();
+
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    let run = super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &SecretStore::new(&temporary),
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(run.results[0].status, "passed");
+    assert!(!run.results[0].extraction_results[0].found);
+}
+
+#[tokio::test]
+async fn collection_run_fails_the_downstream_request_when_extraction_never_ran() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/health"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .mount(&server)
+        .await;
+
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let mut first = save_input(&collection.id, "Health");
+    first.url = format!("{}/health", server.uri());
+    store.save_request(first).await.unwrap();
+
+    let mut second = save_input(&collection.id, "Needs token");
+    second.url = format!("{}/health", server.uri());
+    second.headers = vec![entry("X-Session", "{{authToken}}")];
+    store.save_request(second).await.unwrap();
+
+    let temporary = std::env::temp_dir().join(super::models::new_id());
+    let run = super::commands::run_collection_core(
+        &HttpEngine::new().unwrap(),
+        &store,
+        &SecretStore::new(&temporary),
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(run.results[1].status, "error");
+    assert_eq!(
+        run.results[1].error_code.as_deref(),
+        Some("UNRESOLVED_VARIABLES")
+    );
+}
+
+#[tokio::test]
+async fn preflight_collection_run_command_reports_unresolved_variable() {
+    let store = Store::open_in_memory().await.unwrap();
+    let collection = store.create_collection("Checks").await.unwrap();
+    let mut first = save_input(&collection.id, "First");
+    first.url = "https://example.com/health".to_owned();
+    store.save_request(first).await.unwrap();
+    let mut second = save_input(&collection.id, "Second");
+    second.url = "https://example.com/{{authToken}}".to_owned();
+    store.save_request(second).await.unwrap();
+
+    let report = super::commands::preflight_collection_run_core(
+        &store,
+        RunCollectionInput {
+            collection_id: collection.id,
+            environment_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(report.warnings.len(), 1);
+    assert_eq!(report.warnings[0].variable_name, "authToken");
 }
 
 #[tokio::test]

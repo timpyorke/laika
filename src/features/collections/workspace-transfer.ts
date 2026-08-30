@@ -20,7 +20,7 @@ export function buildWorkspaceExport(collections: Collection[], folders: Folder[
       folders: folders.filter((folder) => folder.collectionId === collection.id).map((folder) => ({ sourceId: folder.id, parentSourceId: folder.parentId, name: folder.name })),
       requests: requests.filter((request) => request.collectionId === collection.id).map((summary) => {
         const saved = detail.get(summary.id)!;
-        return { folderSourceId: saved.folderId, name: saved.name, method: saved.method, url: saved.url, params: saved.params, headers: saved.headers, bodyMode: saved.bodyMode, body: saved.body, form: saved.form, auth: saved.auth, authSecret: null, timeoutMs: saved.timeoutMs, assertions: saved.assertions };
+        return { folderSourceId: saved.folderId, name: saved.name, method: saved.method, url: saved.url, params: saved.params, headers: saved.headers, bodyMode: saved.bodyMode, body: saved.body, form: saved.form, auth: saved.auth, authSecret: null, timeoutMs: saved.timeoutMs, assertions: saved.assertions, extractions: saved.extractions };
       }),
     })),
   };

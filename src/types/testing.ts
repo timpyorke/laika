@@ -18,6 +18,23 @@ export interface AssertionResult extends RequestAssertion {
   message: string;
 }
 
+export type ExtractionSource = "status" | "header" | "jsonPath";
+
+export interface VariableExtraction {
+  id: string;
+  source: ExtractionSource;
+  target: string;
+  variableName: string;
+  isSecret: boolean;
+}
+
+export interface ExtractionResult {
+  extractionId: string;
+  variableName: string;
+  found: boolean;
+  valuePreview: string | null;
+}
+
 export interface TestCaseResult {
   id: string;
   requestId: string | null;
@@ -29,6 +46,7 @@ export interface TestCaseResult {
   elapsedMs: number | null;
   errorCode: ApplicationErrorCode | null;
   assertionResults: AssertionResult[];
+  extractionResults: ExtractionResult[];
   position: number;
 }
 
@@ -51,4 +69,14 @@ export interface TestRun extends TestRunSummary { results: TestCaseResult[]; }
 export interface RunCollectionInput {
   collectionId: string;
   environmentId: string | null;
+}
+
+export interface ChainPreflightWarning {
+  requestId: string;
+  requestName: string;
+  variableName: string;
+}
+
+export interface ChainPreflightReport {
+  warnings: ChainPreflightWarning[];
 }

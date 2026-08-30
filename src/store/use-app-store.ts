@@ -9,7 +9,7 @@ import { normalizeApplicationError } from "../lib/application-error";
 import type { ApplicationError, AuthType, BodyMode, HttpMethod, HttpResponse, KeyValueEntry, RequestDraft, RequestEditorTab, ResponseBodyView, ResponseViewerTab } from "../types/http";
 import type { Collection, Folder, HistorySummary, RequestSummary } from "../types/workspace";
 import type { Environment, EnvironmentVariable, SaveVariableInput, SecretStoreStatus } from "../types/environment";
-import type { RequestAssertion } from "../types/testing";
+import type { RequestAssertion, VariableExtraction } from "../types/testing";
 
 const emptyRow = (): KeyValueEntry => ({ id: crypto.randomUUID(), enabled: true, key: "", value: "" });
 
@@ -29,6 +29,7 @@ const newDraft = (): RequestDraft => ({
   auth: { type: "none", bearerToken: "", username: "", password: "", hasStoredSecret: false },
   timeoutMs: 30_000,
   assertions: [],
+  extractions: [],
 });
 
 type Theme = "light" | "dark";
@@ -95,6 +96,7 @@ interface AppState {
   updateAuth: (patch: Partial<RequestDraft["auth"]>) => void;
   setTimeoutMs: (timeoutMs: number) => void;
   setAssertions: (assertions: RequestAssertion[]) => void;
+  setExtractions: (extractions: VariableExtraction[]) => void;
   setRequestTab: (tab: RequestEditorTab) => void;
   setResponseTab: (tab: ResponseViewerTab) => void;
   setResponseBodyView: (view: ResponseBodyView) => void;
@@ -212,6 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setTimeoutMs: (timeoutMs) => set((state) => updateActiveDraft(state, { ...state.draft, timeoutMs })),
   setAssertions: (assertions) => set((state) => updateActiveDraft(state, { ...state.draft, assertions })),
+  setExtractions: (extractions) => set((state) => updateActiveDraft(state, { ...state.draft, extractions })),
   setRequestTab: (requestTab) => set({ requestTab }),
   setResponseTab: (responseTab) => set({ responseTab }),
   setResponseBodyView: (responseBodyView) => set({ responseBodyView }),

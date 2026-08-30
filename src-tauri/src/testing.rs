@@ -54,6 +54,35 @@ pub struct AssertionResult {
     pub message: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariableExtraction {
+    pub id: String,
+    pub source: ExtractionSource,
+    #[serde(default)]
+    pub target: String,
+    pub variable_name: String,
+    #[serde(default)]
+    pub is_secret: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExtractionSource {
+    Status,
+    Header,
+    JsonPath,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractionResult {
+    pub extraction_id: String,
+    pub variable_name: String,
+    pub found: bool,
+    pub value_preview: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunCollectionInput {
@@ -75,6 +104,8 @@ pub struct TestCaseResult {
     pub elapsed_ms: Option<u64>,
     pub error_code: Option<String>,
     pub assertion_results: Vec<AssertionResult>,
+    #[serde(default)]
+    pub extraction_results: Vec<ExtractionResult>,
     pub position: i64,
 }
 
@@ -159,6 +190,29 @@ fn evaluate_assertion(
         passed,
         message,
     }
+}
+
+pub fn evaluate_extractions(
+    extractions: &[VariableExtraction],
+    response: &HttpResponseOutput,
+) -> Vec<(VariableExtraction, Option<String>)> {
+    extractions
+        .iter()
+        .map(|extraction| {
+            let raw = match extraction.source {
+                ExtractionSource::Status => Some(response.status.to_string()),
+                ExtractionSource::Header => response
+                    .headers
+                    .iter()
+                    .find(|header| header.name.eq_ignore_ascii_case(extraction.target.trim()))
+                    .map(|header| header.value.clone()),
+                ExtractionSource::JsonPath => serde_json::from_str::<Value>(&response.body)
+                    .ok()
+                    .and_then(|body| json_path(&body, &extraction.target).map(value_text)),
+            };
+            (extraction.clone(), raw)
+        })
+        .collect()
 }
 
 fn compare(operator: AssertionOperator, actual: Option<&str>, expected: &str) -> bool {
@@ -307,5 +361,43 @@ mod tests {
         assert!(!result.passed);
         assert_eq!(result.actual, None);
         assert!(result.message.contains("expected equals ready"));
+    }
+
+    fn extraction(
+        source: ExtractionSource,
+        target: &str,
+        variable_name: &str,
+    ) -> VariableExtraction {
+        VariableExtraction {
+            id: "extraction-1".to_owned(),
+            source,
+            target: target.to_owned(),
+            variable_name: variable_name.to_owned(),
+            is_secret: false,
+        }
+    }
+
+    #[test]
+    fn evaluates_status_header_and_json_path_extraction() {
+        let results = evaluate_extractions(
+            &[
+                extraction(ExtractionSource::Status, "", "statusCode"),
+                extraction(ExtractionSource::Header, "Content-Type", "contentType"),
+                extraction(ExtractionSource::JsonPath, "$.data.id", "recordId"),
+            ],
+            &response(),
+        );
+        assert_eq!(results[0].1.as_deref(), Some("201"));
+        assert_eq!(results[1].1.as_deref(), Some("application/json"));
+        assert_eq!(results[2].1.as_deref(), Some("7"));
+    }
+
+    #[test]
+    fn reports_missing_extraction_target_as_not_found() {
+        let results = evaluate_extractions(
+            &[extraction(ExtractionSource::JsonPath, "$.missing", "value")],
+            &response(),
+        );
+        assert_eq!(results[0].1, None);
     }
 }

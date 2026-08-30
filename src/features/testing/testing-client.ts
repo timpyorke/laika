@@ -1,8 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { RunCollectionInput, TestRun, TestRunSummary } from "../../types/testing";
+import type { ChainPreflightReport, RunCollectionInput, TestRun, TestRunSummary } from "../../types/testing";
 
 export async function runCollection(input: RunCollectionInput): Promise<TestRun> {
   return invoke<TestRun>("run_collection", { input });
+}
+
+export async function preflightCollectionRun(input: RunCollectionInput): Promise<ChainPreflightReport> {
+  return invoke<ChainPreflightReport>("preflight_collection_run", { input });
 }
 
 export async function listTestRuns(limit = 20): Promise<TestRunSummary[]> {

@@ -82,6 +82,7 @@ export function serializeSaveRequest(
         : null,
     timeoutMs: draft.timeoutMs,
     assertions: draft.assertions,
+    extractions: draft.extractions,
   };
 }
 
@@ -108,6 +109,7 @@ export function draftFromSavedRequest(saved: SavedRequest): RequestDraft {
     },
     timeoutMs: saved.timeoutMs,
     assertions: saved.assertions,
+    extractions: saved.extractions,
   };
 }
 
@@ -135,5 +137,6 @@ export function draftFromHistoryEntry(entry: HistoryEntry): RequestDraft {
     auth: { type: authType, bearerToken: "", username: request.authUsername, password: "", hasStoredSecret: false },
     timeoutMs: request.timeoutMs,
     assertions: [],
+    extractions: [],
   };
 }

@@ -5,20 +5,22 @@ import { useAppStore } from "../../store/use-app-store";
 import type { TestRun } from "../../types/testing";
 import { TestRunnerPanel } from "./test-runner-panel";
 
-const client = vi.hoisted(() => ({ runCollection: vi.fn(), listTestRuns: vi.fn(), getTestRun: vi.fn(), exportTestRun: vi.fn() }));
+const client = vi.hoisted(() => ({ runCollection: vi.fn(), preflightCollectionRun: vi.fn(), listTestRuns: vi.fn(), getTestRun: vi.fn(), exportTestRun: vi.fn() }));
 vi.mock("./testing-client", () => client);
 
 const run: TestRun = {
   id: "run-1", collectionId: "collection-1", collectionName: "Checks", environmentId: "environment-1", environmentName: "Staging",
   status: "failed", totalRequests: 1, passedRequests: 0, failedRequests: 1, durationMs: 18, createdAt: 1,
   results: [{ id: "case-1", requestId: "request-1", requestName: "Health", method: "GET", url: "{{baseUrl}}/health", status: "failed", responseStatus: 503, elapsedMs: 18, errorCode: null, position: 0,
-    assertionResults: [{ id: "assertion-1", assertionId: "assertion-1", kind: "status", operator: "equals", target: "", expected: "200", actual: "503", passed: false, message: "status: expected equals 200, actual 503" }] }],
+    assertionResults: [{ id: "assertion-1", assertionId: "assertion-1", kind: "status", operator: "equals", target: "", expected: "200", actual: "503", passed: false, message: "status: expected equals 200, actual 503" }],
+    extractionResults: [] }],
 };
 
 describe("TestRunnerPanel", () => {
   beforeEach(() => {
     for (const mock of Object.values(client)) mock.mockReset();
     client.listTestRuns.mockResolvedValue([]);
+    client.preflightCollectionRun.mockResolvedValue({ warnings: [] });
     client.runCollection.mockResolvedValue(run);
     useAppStore.setState({
       collections: [{ id: "collection-1", name: "Checks", description: "", position: 0, createdAt: 1, updatedAt: 1 }],
@@ -34,5 +36,32 @@ describe("TestRunnerPanel", () => {
     await waitFor(() => expect(client.runCollection).toHaveBeenCalledWith({ collectionId: "collection-1", environmentId: "environment-1" }));
     expect(await screen.findByText(/status: expected equals 200, actual 503/)).toBeInTheDocument();
     expect(screen.getByText((_, element) => element?.textContent === "0 passed · 1 failed · 18 ms · Staging")).toBeInTheDocument();
+  });
+
+  it("requires a confirming click before running when chaining warnings exist", async () => {
+    client.preflightCollectionRun.mockResolvedValue({
+      warnings: [{ requestId: "request-1", requestName: "Health", variableName: "authToken" }],
+    });
+    render(<TestRunnerPanel />);
+    expect(await screen.findByText(/needs/)).toBeInTheDocument();
+    const button = await screen.findByRole("button", { name: "Run anyway" });
+    await userEvent.click(button);
+    expect(client.runCollection).not.toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole("button", { name: "Run 1 request" }));
+    await waitFor(() => expect(client.runCollection).toHaveBeenCalled());
+  });
+
+  it("renders captured and missing extraction results", async () => {
+    client.runCollection.mockResolvedValue({
+      ...run,
+      results: [{ ...run.results[0], assertionResults: [], extractionResults: [
+        { extractionId: "extraction-1", variableName: "authToken", found: true, valuePreview: "abc123" },
+        { extractionId: "extraction-2", variableName: "missingValue", found: false, valuePreview: null },
+      ] }],
+    });
+    render(<TestRunnerPanel />);
+    await userEvent.click(await screen.findByRole("button", { name: "Run 1 request" }));
+    expect(await screen.findByText(/Captured \{\{authToken\}\}: abc123/)).toBeInTheDocument();
+    expect(await screen.findByText(/\{\{missingValue\}\} not found in response/)).toBeInTheDocument();
   });
 });

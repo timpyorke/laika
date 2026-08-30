@@ -25,6 +25,7 @@ const draft = (): RequestDraft => ({
   auth: { type: "bearer", bearerToken: "token", username: "", password: "", hasStoredSecret: false },
   timeoutMs: 12_000,
   assertions: [],
+  extractions: [],
 });
 
 describe("serializeRequest", () => {
@@ -78,6 +79,7 @@ describe("serializeSaveRequest", () => {
       authSecret: "token",
       timeoutMs: 12_000,
       assertions: [],
+      extractions: [],
     });
   });
 
@@ -93,6 +95,12 @@ describe("serializeSaveRequest", () => {
     const value = draft();
     value.savedRequestId = "saved-1";
     expect(serializeSaveRequest(value, "collection-1", null).id).toBe("saved-1");
+  });
+
+  it("carries chaining extraction rules through to the save payload", () => {
+    const value = draft();
+    value.extractions = [{ id: "extraction-1", source: "jsonPath", target: "$.token", variableName: "authToken", isSecret: false }];
+    expect(serializeSaveRequest(value, "collection-1", null).extractions).toEqual(value.extractions);
   });
 });
 
@@ -112,6 +120,7 @@ const savedRequest = (): SavedRequest => ({
   hasAuthSecret: true,
   timeoutMs: 20_000,
   assertions: [],
+  extractions: [],
 });
 
 describe("draftFromSavedRequest", () => {
@@ -128,6 +137,12 @@ describe("draftFromSavedRequest", () => {
     const restored = draftFromSavedRequest(savedRequest());
     expect(restored.headers).toHaveLength(1);
     expect(restored.headers[0]).toMatchObject({ key: "", value: "" });
+  });
+
+  it("restores chaining extraction rules", () => {
+    const saved = savedRequest();
+    saved.extractions = [{ id: "extraction-1", source: "header", target: "X-Session", variableName: "authToken", isSecret: true }];
+    expect(draftFromSavedRequest(saved).extractions).toEqual(saved.extractions);
   });
 });
 

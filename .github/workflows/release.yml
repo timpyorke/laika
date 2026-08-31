@@ -82,7 +82,7 @@ jobs:
       # according to the Artifact Configuration created on signpath.io, and
       # returns a signed copy of the same artifact layout.
       - name: Submit SignPath signing request
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}

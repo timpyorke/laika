@@ -63,7 +63,7 @@ jobs:
 
       - name: Resolve unsigned artifact ID
         id: unsigned-artifact
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { data } = await github.rest.actions.listWorkflowRunArtifacts({
